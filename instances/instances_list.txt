@@ -1,0 +1,18 @@
+17
+./instances/slashdot-undirected-size200-part0.graph 30 128
+./instances/slashdot-undirected-size1000-part0.graph 900 512
+./instances/slashdot-undirected-size600-part0.graph 300 512
+./instances/slashdot-undirected-size800-part0.graph 300 128
+./instances/slashdot-undirected-size200-part0.graph 300 128
+./instances/slashdot-undirected-size300-part0.graph 300 128
+./instances/slashdot-undirected-size400-part0.graph 300 128
+./instances/slashdot-undirected-size600-part0.graph 300 128
+./instances/slashdot-undirected-size1000-part0.graph 900 128
+./instances/slashdot-undirected-size2000-part0.graph 900 128
+./instances/slashdot-undirected-size300-part0.graph 300 256
+./instances/slashdot-undirected-size800-part0.graph 300 512
+./instances/slashdot-undirected-size2000-part0.graph 900 1024
+./instances/slashdot-undirected-size4000-part0.graph 900 1024
+./instances/slashdot-undirected-size8000-part0.graph 1800 1024
+./instances/slashdot-undirected-size10000-part0.graph 3600 1024
+./instances/slashdot-undirected-size400-part0.graph 300 256
