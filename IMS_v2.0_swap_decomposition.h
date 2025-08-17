@@ -1687,7 +1687,7 @@ void verify(const Graph &graph, Solution &bsol)
 /*
  * 将解写入文件
  */
-void write_IMSS_sol(const Graph &graph, const Solution &csol, char *instancefile, const int &fno) {
+void write_IMSSDN_sol(const Graph &graph, const Solution &csol, char *instancefile, const int &fno) {
     // 获取文件名
     char *graph_name = basename(instancefile);
 
@@ -1837,7 +1837,7 @@ void IMS_run(char *instancefile, double timelimit)
 #endif
 		iterated_maxima_search(graph, bsol, timelimit);
 		verify(graph, bsol);
-		write_IMSS_sol(graph, bsol, instancefile, seed);
+		write_IMSSDN_sol(graph, bsol, instancefile, seed);
 
 		printf("IMSS Round %d: best cost=%d\n", crun, rbcost);
 

@@ -6,6 +6,7 @@
 // Description : Hello World in C++, Ansi-style
 //============================================================================
 
+#include <windows.h>
 #include <iostream>
 using namespace std;
 
@@ -22,7 +23,7 @@ bool tuning = false;
 #if(isIMS)
 //#include "IMS_v1.0.h"
 //#include "IMS_v2.0_swap.h"
-#include "IMS_v2.0_swap_decomposition.h"
+#include "IMS_v2.0_swap_dc_purturb.h"
 #elif(isTS)
 #include "TS.h"
 #elif(isVNS)
@@ -33,6 +34,8 @@ bool tuning = false;
 
 int main(int argc, char** argv) {
 	cout << "!!! begin running!!!" << endl;
+	// 设置控制台代码页为 UTF-8
+	SetConsoleOutputCP(CP_UTF8);
 
 	// 输入参数
 	if(tuning)
@@ -55,8 +58,8 @@ int main(int argc, char** argv) {
 	{
 		root_path = "../";
 		srand(seed);
-		string dir = "./instances/";
-		string rltfile = "./results/result";
+		string dir = root_path + "instances/";
+		string rltfile = root_path + "results/result";
 		string listfile = "instances_list.txt";
 		string path = dir + listfile;
 		string *instance_list;
