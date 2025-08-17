@@ -38,6 +38,7 @@
 #include "tools.h"
 
 #define MAX_VALUE 99999999
+string root_path;
 
 class Node{
 public:
