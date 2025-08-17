@@ -37,6 +37,7 @@ int main(int argc, char** argv) {
 	// 输入参数
 	if(tuning)
 	{
+		root_path = "./";
 		Read_Parameters(argc, argv);
 		srand(seed);
 		string rltfile = "./results/result";
@@ -52,6 +53,7 @@ int main(int argc, char** argv) {
 	}
 	else
 	{
+		root_path = "../";
 		srand(seed);
 		string dir = "./instances/";
 		string rltfile = "./results/result";

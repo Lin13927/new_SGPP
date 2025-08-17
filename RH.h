@@ -464,7 +464,7 @@ void multistart_relocation_heuristic(const Graph &graph, Solution &bsol, double 
 #endif
 	char outputfile[1000];
 	char *graph_name = basename(filename);
-	sprintf(outputfile, "./output_dir/results_%s_%d.txt", graph_name, K);
+	sprintf(outputfile, "%soutput_dir/results_%s_%d.txt", root_path.c_str(), graph_name, K);
 	FILE *opf = fopen(outputfile, "a");
 	if (!opf) {
 		perror("Failed to open RH output file");
@@ -484,7 +484,7 @@ void write_RH_sol(const Graph &graph, const Solution &csol, char *instancefile, 
 
     // 拼接文件路径
     char rltfile[1000];
-    sprintf(rltfile, "./init_sols/%s_%d_%d", graph_name, graph.k, fno);
+    sprintf(rltfile, "%sinit_sols/%s_%d_%d", root_path.c_str(), graph_name, graph.k, fno);
 
     // 用 ofstream 打开文件
     ofstream fout(rltfile);

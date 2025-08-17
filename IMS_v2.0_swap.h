@@ -447,7 +447,7 @@ void output_header(int run)
 {
 	char outputfile[1000];
 	char *graph_name = basename(filename);
-	sprintf(outputfile, "./output_dir/results_%s_%d.txt", graph_name, K);
+	sprintf(outputfile, "%soutput_dir/results_%s_%d.txt", root_path.c_str(), graph_name, K);
 	FILE *opf = fopen(outputfile, "a");
 	if (!opf) {
 		perror("Failed to open output file");
@@ -598,7 +598,7 @@ void multistart_relocation_heuristic(const Graph &graph, Solution &bsol, double 
 #endif
 	char outputfile[1000];
 	char *graph_name = basename(filename);
-	sprintf(outputfile, "./output_dir/results_%s_%d.txt", graph_name, K);
+	sprintf(outputfile, "%soutput_dir/results_%s_%d.txt", root_path.c_str(), graph_name, K);
 	FILE *opf = fopen(outputfile, "a");
 	if (!opf) {
 		perror("Failed to open RH output file");
@@ -620,7 +620,7 @@ void read_RH_sol(const Graph &graph, Solution &csol, char *instancefile, const i
 	if(tuning)
 		sprintf(rltfile, "../init_sols/%s_%d_%d", graph_name, graph.k, fno);	// 生成新的前缀zzzzmutex&graph_name&tid（每个时间块文件各自拥有一个互斥文件）
 	else
-		sprintf(rltfile, "./init_sols/%s_%d_%d", graph_name, graph.k, fno);
+		sprintf(rltfile, "%sinit_sols/%s_%d_%d", root_path.c_str(), graph_name, graph.k, fno);
 	// 打开解文件
 	ifstream sol_file(rltfile);
 	if (!sol_file.is_open()) {
@@ -1688,7 +1688,7 @@ void write_IMSS_sol(const Graph &graph, const Solution &csol, char *instancefile
 
     // 拼接文件路径
     char rltfile_detail[1000];
-    sprintf(rltfile_detail, "./results/IMSS_%s_%d_%d", graph_name, graph.k, fno);
+    sprintf(rltfile_detail, "%sresults/IMSS_%s_%d_%d", root_path.c_str(), graph_name, graph.k, fno);
 
     // 用 ofstream 打开文件
     ofstream fout(rltfile_detail);
@@ -1780,7 +1780,7 @@ void iterated_maxima_search(const Graph &graph, Solution &csol, double tlimit)
 #endif
 	char outputfile[1000];
 	char *graph_name = basename(filename);
-	sprintf(outputfile, "./output_dir/results_%s_%d.txt", graph_name, K);
+	sprintf(outputfile, "%soutput_dir/results_%s_%d.txt", root_path.c_str(), graph_name, K);
 	FILE *opf = fopen(outputfile, "a");
 	if (!opf) {
 		perror("Failed to open output file");

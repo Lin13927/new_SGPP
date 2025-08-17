@@ -580,7 +580,7 @@ void multistart_relocation_heuristic(const Graph &graph, Solution &bsol, double 
 #endif
 	char outputfile[1000];
 	char *graph_name = basename(filename);
-	sprintf(outputfile, "./output_dir/results_%s_%d.txt", graph_name, K);
+	sprintf(outputfile, "%soutput_dir/results_%s_%d.txt", root_path.c_str(), graph_name, K);
 	FILE *opf = fopen(outputfile, "a");
 	if (!opf) {
 		perror("Failed to open RH output file");
@@ -691,7 +691,7 @@ void tabu_search(const Graph &graph, Solution &bsol, double tlimit)
 #endif
 	char outputfile[1000];
 	char *graph_name = basename(filename);
-	sprintf(outputfile, "./output_dir/results_%s_%d.txt", graph_name, K);
+	sprintf(outputfile, "%soutput_dir/results_%s_%d.txt", root_path.c_str(), graph_name, K);
 	FILE *opf = fopen(outputfile, "a");
 	if (!opf) {
 		perror("Failed to open output file");
@@ -829,7 +829,7 @@ void variable_neighborhood_search(const Graph &graph, Solution &csol, double tli
 #endif
 	char outputfile[1000];
 	char *graph_name = basename(filename);
-	sprintf(outputfile, "./output_dir/results_%s_%d.txt", graph_name, K);
+	sprintf(outputfile, "%soutput_dir/results_%s_%d.txt", root_path.c_str(), graph_name, K);
 	FILE *opf = fopen(outputfile, "a");
 	if (!opf) {
 		perror("Failed to open output file");
