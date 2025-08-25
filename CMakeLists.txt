@@ -3,4 +3,5 @@ project(SGPP)
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_executable(SGPP main.cpp)
+add_executable(SGPP main.cpp
+        statistic.h)

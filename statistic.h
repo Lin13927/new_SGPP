@@ -1,12 +1,9 @@
-/*
- * IMS_v1.0.h
- *
- *  Created on: 2025年3月6日
- *      Author: LinLin
- */
+//
+// Created by LinLin on 25-8-18.
+//
 
-#ifndef IMS_V1_0_H_
-#define IMS_V1_0_H_
+#ifndef STATISTIC_H
+#define STATISTIC_H
 
 #include <algorithm>
 #include <assert.h>
@@ -84,6 +81,7 @@ public:
 			cerr << "Empty file" << filename << endl;
 			exit(-4);
 		}
+		cout << "读图" << filename << "..." << endl;
 
 		// 开始读图
 		string first_line;
@@ -377,8 +375,12 @@ int runs = 1;
 int *asc_nodes1, *asc_nodes2, *asc_nodes3, *asc_nodes4;
 int *desc_nodes1, *desc_nodes2, *desc_nodes3, *desc_nodes4;
 int *desc_swap_nodes1;
-vector<vector<int>> Descending_swap_v;
+vector<vector<int>> Descending_swap_v;  // [k][未知]，存储每个分区(partition)中节点按照交换价值(swap value)排序后的列表
 int **pos_gamma, **neg_gamma;
+
+// 存储从属节点、孤立点和重点节点
+vector<int> key_nodes, iso_nodes, sec_nodes;
+
 
 // 记录最好的结果和最好的时间
 int rbcost;
@@ -460,20 +462,44 @@ void output_header(int run)
 
 
 /*
+ * 根据每个结点的度进行分类：重点节点、孤立点、从属节点
+ */
+void class_nodes(const Graph &graph)
+{
+	key_nodes.clear();
+	sec_nodes.clear();
+	iso_nodes.clear();
+
+	for (int i = 0; i < graph.nnode; i++)
+	{
+		if (graph.nodes[i].edges.size() == 0)
+			iso_nodes.push_back(i);
+		// else if (graph.nodes[i].edges.size() == 1 || graph.nodes[i].edges.size() == 2)
+		else if (graph.nodes[i].edges.size() == 1)
+			sec_nodes.push_back(i);
+		else  if (graph.nodes[i].edges.size() > 1)
+			key_nodes.push_back(i);
+	}
+}
+
+
+/*
  * 分配内存
  */
 void allocate_memory(const Graph &graph)
 {
+	int key_nodes_size = key_nodes.size();
 	Descending_swap_v.resize(graph.k);
-	asc_nodes1 = new int[graph.nnode];
-	desc_nodes1 = new int[graph.nnode];
-	asc_nodes2 = new int[graph.nnode];
-	desc_nodes2 = new int[graph.nnode];
-	asc_nodes3 = new int[graph.nnode];
-	desc_nodes3 = new int[graph.nnode];
-	asc_nodes4 = new int[graph.nnode];
-	desc_nodes4 = new int[graph.nnode];
-	desc_swap_nodes1 = new int[graph.nnode];
+
+	asc_nodes1 = new int[key_nodes_size];
+	desc_nodes1 = new int[key_nodes_size];
+	asc_nodes2 = new int[key_nodes_size];
+	desc_nodes2 = new int[key_nodes_size];
+	asc_nodes3 = new int[key_nodes_size];
+	desc_nodes3 = new int[key_nodes_size];
+	asc_nodes4 = new int[key_nodes_size];
+	desc_nodes4 = new int[key_nodes_size];
+	desc_swap_nodes1 = new int[key_nodes_size];
 
 	pos_gamma = new int*[graph.k];
 	neg_gamma = new int*[graph.k];
@@ -653,6 +679,7 @@ void read_RH_sol(const Graph &graph, Solution &csol, char *instancefile, const i
 	sol_file.close();
 }
 
+
 /*
  * 计算常用指标并输出：best cost, average cost, average time, hit, dev
  */
@@ -692,32 +719,34 @@ void cal_indicators(int *each_run_rlt, int *each_run_time, const int &runs, int 
  */
 void calculate_v1(const Graph &graph)
 {
+	int key_nodes_size = int(key_nodes.size());
 	// 重置
-	for(int i = 0; i < graph.nnode; i++)
+	for(int i = 0; i < key_nodes_size; i++)
 	{
-		asc_nodes1[i] = i;
-		desc_nodes1[i] = i;
+		asc_nodes1[i] = key_nodes[i];
+		desc_nodes1[i] = key_nodes[i];
 	}
 
 	// 计算结点影响力
-	int *obj_value1 = new int[graph.nnode];
-	int *obj_value2 = new int[graph.nnode];
-	memset(obj_value1, 0, sizeof(int)*graph.nnode);
+	int *obj_value1 = new int[key_nodes_size];
+	int *obj_value2 = new int[key_nodes_size];
+	memset(obj_value1, 0, sizeof(int)*key_nodes_size);
 
-	for(int i = 0; i < graph.nnode; i++)
+	for(int i = 0; i < key_nodes_size; i++)
 	{
-		int v1 = graph.nodes[i].idx;
-		int size = int(graph.nodes[i].edges.size());
+		int key_idx = key_nodes[i];
+		int v1 = graph.nodes[key_idx].idx;
+		int size = int(graph.nodes[key_idx].edges.size());
 		for(int j = 0; j < size; j++)
 		{
-			obj_value1[v1] += abs(graph.nodes[i].edges[j].second);
+			obj_value1[i] += abs(graph.nodes[key_idx].edges[j].second);
 		}
 	}
-	memcpy(obj_value2, obj_value1, sizeof(int)*graph.nnode);
+	memcpy(obj_value2, obj_value1, sizeof(int)*key_nodes_size);
 
 	// 排序
-	Quick_Sort_asc(asc_nodes1, obj_value1, 0, graph.nnode-1);
-	Quick_Sort_desc(desc_nodes1, obj_value2, 0, graph.nnode-1);
+	Quick_Sort_asc(asc_nodes1, obj_value1, 0, key_nodes_size-1);
+	Quick_Sort_desc(desc_nodes1, obj_value2, 0, key_nodes_size-1);
 
 	// 释放内存
 	delete[] obj_value1;
@@ -730,33 +759,35 @@ void calculate_v1(const Graph &graph)
  */
 void calculate_v2(const Graph &graph)
 {
+	int key_nodes_size = int(key_nodes.size());
 	// 重置
-	for(int i = 0; i < graph.nnode; i++)
+	for(int i = 0; i < key_nodes_size; i++)
 	{
-		asc_nodes2[i] = i;
-		desc_nodes2[i] = i;
+		asc_nodes2[i] = key_nodes[i];
+		desc_nodes2[i] = key_nodes[i];
 	}
 
 	// 计算结点影响力
-	int *obj_value1 = new int[graph.nnode];
-	int *obj_value2 = new int[graph.nnode];
-	memset(obj_value1, 0, sizeof(int)*graph.nnode);
+	int *obj_value1 = new int[key_nodes_size];
+	int *obj_value2 = new int[key_nodes_size];
+	memset(obj_value1, 0, sizeof(int)*key_nodes_size);
 
-	for(int i = 0; i < graph.nnode; i++)
+	for(int i = 0; i < key_nodes_size; i++)
 	{
-		int v1 = graph.nodes[i].idx;
-		int size = int(graph.nodes[i].edges.size());
+		int key_idx = key_nodes[i];
+		int v1 = graph.nodes[key_idx].idx;
+		int size = int(graph.nodes[key_idx].edges.size());
 		for(int j = 0; j < size; j++)
 		{
-			if(graph.nodes[i].edges[j].second > 0)
-				obj_value1[v1] += graph.nodes[i].edges[j].second;
+			if(graph.nodes[key_idx].edges[j].second > 0)
+				obj_value1[i] += graph.nodes[key_idx].edges[j].second;
 		}
 	}
-	memcpy(obj_value2, obj_value1, sizeof(int)*graph.nnode);
+	memcpy(obj_value2, obj_value1, sizeof(int)*key_nodes_size);
 
 	// 排序
-	Quick_Sort_asc(asc_nodes2, obj_value1, 0, graph.nnode-1);
-	Quick_Sort_desc(desc_nodes2, obj_value2, 0, graph.nnode-1);
+	Quick_Sort_asc(asc_nodes2, obj_value1, 0, key_nodes_size-1);
+	Quick_Sort_desc(desc_nodes2, obj_value2, 0, key_nodes_size-1);
 
 	// 释放内存
 	delete[] obj_value1;
@@ -769,33 +800,36 @@ void calculate_v2(const Graph &graph)
  */
 void calculate_v3(const Graph &graph)
 {
+	int key_nodes_size = int(key_nodes.size());
 	// 重置
-	for(int i = 0; i < graph.nnode; i++)
+	for(int i = 0; i < key_nodes_size; i++)
 	{
-		asc_nodes3[i] = i;
-		desc_nodes3[i] = i;
+		asc_nodes3[i] = key_nodes[i];
+		desc_nodes3[i] = key_nodes[i];
 	}
+
 
 	// 计算结点影响力
-	int *obj_value1 = new int[graph.nnode];
-	int *obj_value2 = new int[graph.nnode];
-	memset(obj_value1, 0, sizeof(int)*graph.nnode);
+	int *obj_value1 = new int[key_nodes_size];
+	int *obj_value2 = new int[key_nodes_size];
+	memset(obj_value1, 0, sizeof(int)*key_nodes_size);
 
-	for(int i = 0; i < graph.nnode; i++)
+	for(int i = 0; i < key_nodes_size; i++)
 	{
-		int v1 = graph.nodes[i].idx;
-		int size = int(graph.nodes[i].edges.size());
+		int key_idx = key_nodes[i];
+		int v1 = graph.nodes[key_idx].idx;
+		int size = int(graph.nodes[key_idx].edges.size());
 		for(int j = 0; j < size; j++)
 		{
-			if(graph.nodes[i].edges[j].second < 0)
-				obj_value1[v1] += abs(graph.nodes[i].edges[j].second);
+			if(graph.nodes[key_idx].edges[j].second < 0)
+				obj_value1[i] += abs(graph.nodes[key_idx].edges[j].second);
 		}
 	}
-	memcpy(obj_value2, obj_value1, sizeof(int)*graph.nnode);
+	memcpy(obj_value2, obj_value1, sizeof(int)*key_nodes_size);
 
 	// 排序
-	Quick_Sort_asc(asc_nodes3, obj_value1, 0, graph.nnode-1);
-	Quick_Sort_desc(desc_nodes3, obj_value2, 0, graph.nnode-1);
+	Quick_Sort_asc(asc_nodes3, obj_value1, 0, key_nodes_size-1);
+	Quick_Sort_desc(desc_nodes3, obj_value2, 0, key_nodes_size-1);
 
 	// 释放内存
 	delete[] obj_value1;
@@ -808,35 +842,37 @@ void calculate_v3(const Graph &graph)
  */
 void calculate_v4(const Graph &graph, const Solution &csol)
 {
+	int key_nodes_size = int(key_nodes.size());
 	// 重置
-	for(int i = 0; i < graph.nnode; i++)
+	for(int i = 0; i < key_nodes_size; i++)
 	{
-		asc_nodes4[i] = i;
-		desc_nodes4[i] = i;
+		asc_nodes4[i] = key_nodes[i];
+		desc_nodes4[i] = key_nodes[i];
 	}
 
 	// 计算结点影响力
-	int *obj_value1 = new int[graph.nnode];
-	int *obj_value2 = new int[graph.nnode];
-	memset(obj_value1, 0, sizeof(int)*graph.nnode);
+	int *obj_value1 = new int[key_nodes_size];
+	int *obj_value2 = new int[key_nodes_size];
+	memset(obj_value1, 0, sizeof(int)*key_nodes_size);
 
-	for(int i = 0; i < graph.nnode; i++)
+	for(int i = 0; i < key_nodes_size; i++)
 	{
-		int v1 = graph.nodes[i].idx;
-		int size = int(graph.nodes[i].edges.size());
+		int key_idx = key_nodes[i];
+		int v1 = graph.nodes[key_idx].idx;
+		int size = int(graph.nodes[key_idx].edges.size());
 		for(int j = 0; j < size; j++)
 		{
-			if(graph.nodes[i].edges[j].second > 0 && csol.ptn[i] != csol.ptn[j])
-				obj_value1[v1] += graph.nodes[i].edges[j].second;
-			if(graph.nodes[i].edges[j].second < 0  && csol.ptn[i] == csol.ptn[j])
-				obj_value1[v1] += abs(graph.nodes[i].edges[j].second);
+			if(graph.nodes[key_idx].edges[j].second > 0 && csol.ptn[key_idx] != csol.ptn[j])
+				obj_value1[i] += graph.nodes[key_idx].edges[j].second;
+			if(graph.nodes[key_idx].edges[j].second < 0  && csol.ptn[key_idx] == csol.ptn[j])
+				obj_value1[i] += abs(graph.nodes[key_idx].edges[j].second);
 		}
 	}
-	memcpy(obj_value2, obj_value1, sizeof(int)*graph.nnode);
+	memcpy(obj_value2, obj_value1, sizeof(int)*key_nodes_size);
 
 	// 排序
-	Quick_Sort_asc(asc_nodes4, obj_value1, 0, graph.nnode-1);
-	Quick_Sort_desc(desc_nodes4, obj_value2, 0, graph.nnode-1);
+	Quick_Sort_asc(asc_nodes4, obj_value1, 0, key_nodes_size-1);
+	Quick_Sort_desc(desc_nodes4, obj_value2, 0, key_nodes_size-1);
 
 	// 释放内存
 	delete[] obj_value1;
@@ -989,9 +1025,11 @@ Solution local_search(const Graph &graph, const Solution &bsol, clock_t cstime)
 #if(DEBUG)
 		printf("debug--1.3\n");fflush(stdout);
 #endif
-		for(int i = 0; i < graph.nnode; i++)
+		// for(int i = 0; i < graph.nnode; i++)
+		int key_nodes_size = int(key_nodes.size());
+		for(int i = 0; i < key_nodes_size; i++)
 		{
-			int vtx1 = i;
+			int vtx1 = key_nodes[i];
 			int clst1 = csol.ptn[vtx1];
 			int size = int(graph.nodes[i].edges.size());
 			if(csol.sc[clst1] == 1 || size == 0)
@@ -1055,7 +1093,8 @@ Solution biased_local_search1(const Graph &graph, const Solution &bsol, clock_t 
 #if(DEBUG)
 		printf("debug--1.3\n");fflush(stdout);
 #endif
-		for(int i = 0; i < graph.nnode; i++)
+		int key_nodes_size = int(key_nodes.size());
+		for(int i = 0; i < key_nodes_size; i++)
 		{
 			int vtx1 = asc_nodes1[i];
 			int clst1 = csol.ptn[vtx1];
@@ -1121,7 +1160,8 @@ Solution biased_local_search2(const Graph &graph, const Solution &bsol, clock_t 
 #if(DEBUG)
 		printf("debug--1.3\n");fflush(stdout);
 #endif
-		for(int i = 0; i < graph.nnode; i++)
+		int key_nodes_size = int(key_nodes.size());
+		for(int i = 0; i < key_nodes_size; i++)
 		{
 			int vtx1 = asc_nodes2[i];
 			int clst1 = csol.ptn[vtx1];
@@ -1187,7 +1227,8 @@ Solution biased_local_search3(const Graph &graph, const Solution &bsol, clock_t 
 #if(DEBUG)
 		printf("debug--1.3\n");fflush(stdout);
 #endif
-		for(int i = 0; i < graph.nnode; i++)
+		int key_nodes_size = int(key_nodes.size());
+		for(int i = 0; i < key_nodes_size; i++)
 		{
 			int vtx1 = asc_nodes3[i];
 			int clst1 = csol.ptn[vtx1];
@@ -1297,7 +1338,10 @@ void swap_v(const Graph &graph, const Solution& csol) {
 		else
 		{
 			for(int i = 0; i < len_dsvk; i++)
-				Descending_swap_v[pid].push_back(swap_v[pid][i].second);
+			{
+				if (graph.nodes[swap_v[pid][i].second].edges.size() > 2)
+					Descending_swap_v[pid].push_back(swap_v[pid][i].second);
+			}
 		}
 	}
 }
@@ -1319,11 +1363,11 @@ Solution swap_local_search(const Graph &graph, const Solution& bsol, clock_t cst
 #endif
 		for(int pid1 = 0; pid1 < graph.k; pid1++)
 		{
-			for(const auto& vtx1 : Descending_swap_v[pid1])
+			for(const int& vtx1 : Descending_swap_v[pid1])
 			{
 				for(int pid2 = pid1+1; pid2 < graph.k;pid2++)
 				{
-					for(const auto& vtx2 : Descending_swap_v[pid2])
+					for(const int& vtx2 : Descending_swap_v[pid2])
 					{
 						if(csol.ptn[vtx1] == csol.ptn[vtx2])
 							continue;
@@ -1693,7 +1737,7 @@ void write_IMSSDN_sol(const Graph &graph, const Solution &csol, char *instancefi
 
     // 拼接文件路径
     char rltfile_detail[1000];
-    sprintf(rltfile_detail, "%sresults/IMSS_%s_%d_%d", root_path.c_str(), graph_name, graph.k, fno);
+    sprintf(rltfile_detail, "%sresults/IMSSDN_%s_%d_%d", root_path.c_str(), graph_name, graph.k, fno);
 
     // 用 ofstream 打开文件
     ofstream fout(rltfile_detail);
@@ -1723,6 +1767,46 @@ void write_IMSSDN_sol(const Graph &graph, const Solution &csol, char *instancefi
     fout << endl;
 
     fout.close();
+}
+
+void write_graph_info(const Graph &graph, char *instancefile, const int &fno) {
+	// 获取文件名
+	char *graph_name = basename(instancefile);
+
+	// 拼接文件路径
+	char rltfile_detail[1000];
+	sprintf(rltfile_detail, "%sinstances/info.txt", root_path.c_str());
+
+	// 用 ofstream 打开文件
+	ofstream fout(rltfile_detail, ios::app);
+	if (!fout.is_open()) {
+		cerr << "无法打开文件: " << rltfile_detail << endl;
+		exit(EXIT_FAILURE);
+	}
+
+	// 统计图信息
+	int num_neg_edges = 0;  // 负边数
+	int num_pos_edges = 0;  // 正边数
+	for (int i = 0; i < graph.nnode; i++) {
+		int idx_i = graph.nodes[i].idx;
+		for (auto &edge : graph.nodes[i].edges) {
+			int idx_j = edge.first;
+			//
+			// if (idx_i > idx_j)
+			// {
+			if (edge.second < 0) {
+				num_neg_edges++;
+			} else if (edge.second > 0) {
+				num_pos_edges++;
+			}
+			// }
+		}
+	}
+
+	// 写入文件
+	fout << graph_name << ", " << graph.nnode << ", " << graph.nedge << ", " << num_pos_edges << ", " << num_neg_edges << endl;
+
+	fout.close();
 }
 
 
@@ -1808,46 +1892,11 @@ void IMS_run(char *instancefile, double timelimit)
 {
 	// 读图
 	Graph graph = Graph(instancefile, K);
-	allocate_memory(graph);
-
-	calculate_v1(graph);
-	calculate_v2(graph);
-	calculate_v3(graph);
-
-	// run 10 times algorithms
-	int crun = 0;
-	while(crun < runs)
-	{
-		output_header(crun + 1);
-		start = clock();
-		rbcost = MAX_VALUE;
-		rbtime = MAX_VALUE;
-		start = clock();
-
-		// 1.RH
-#if(DEBUG)
-		printf("debug--1\n");fflush(stdout);
-#endif
-		Solution bsol = Solution();
-		read_RH_sol(graph, bsol, instancefile, crun);
-
-		// 2.IMSS
-#if(DEBUG)
-		printf("debug--2\n");fflush(stdout);
-#endif
-		iterated_maxima_search(graph, bsol, timelimit);
-		verify(graph, bsol);
-		write_IMSSDN_sol(graph, bsol, instancefile, seed);
-
-		printf("IMSS Round %d: best cost=%d\n", crun, rbcost);
-
-		crun++;
-	}
+	write_graph_info(graph, instancefile, seed);
 
 	// 释放内存
-	free_memory(graph);
+	// free_memory(graph);
 }
 
 
-
-#endif /* IMS_V1_0_H_ */
+#endif //STATISTIC_H
