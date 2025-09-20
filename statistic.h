@@ -1301,7 +1301,7 @@ int get_weight(const Graph &graph, int vtx1, int vtx2) {
 
 
 // Function to calculate swap values
-void swap_v(const Graph &graph, const Solution& csol) {
+void cal_swap_value(const Graph &graph, const Solution& csol) {
     int swap_n = int(graph.nnode / graph.k);
 	vector<vector<pair<int, int>>> swap_v(graph.k);
 	for(int vtx1 = 0; vtx1 < graph.nnode; vtx1++)
@@ -1646,7 +1646,7 @@ Solution rel_Maxima_search(const Graph &graph, Solution &csol, clock_t cstime, d
 		bsol.btime = (clock() - cstime) / static_cast<double>(CLOCKS_PER_SEC);
 	}
 
-	swap_v(graph, bsol);
+	cal_swap_value(graph, bsol);
 	bsol.cpy(swap_local_search(graph, bsol, cstime));
 
 
@@ -1670,7 +1670,7 @@ Solution rel_Maxima_search(const Graph &graph, Solution &csol, clock_t cstime, d
 		if(nsol2.cost < csol.cost) csol.cpy(nsol2);
 		if(nsol3.cost < csol.cost) csol.cpy(nsol3);
 
-		swap_v(graph, csol);
+		cal_swap_value(graph, csol);
 		double rnd = ((double)rand() / RAND_MAX);
 		// TODO
 		if (rnd < param_q*K/graph.nnode)

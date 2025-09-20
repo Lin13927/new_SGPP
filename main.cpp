@@ -26,7 +26,7 @@ bool tuning = false;
 //#include "IMS_v2.0_swap.h"
 // #include "statistic.h"
 // #include "IMS_v2.0_swap_dc_purturb.h"
-#include "IMS_v2.3_swap_decomposition2.h"
+#include "IMS_v2.3_decomposition3.h"
 #elif(isTS)
 #include "TS.h"
 #elif(isVNS)
