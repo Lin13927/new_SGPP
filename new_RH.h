@@ -24,11 +24,13 @@
 #include <math.h>
 #include <set>
 #include <sstream>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
 #include <time.h>
 #include <unistd.h>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 //#include <fcntl.h>
@@ -39,31 +41,42 @@
 #define MAX_VALUE 99999999
 string root_path;
 
-class Node{
+class Node
+{
 public:
 	int idx;
-	vector<pair<int, int>> edges;
+	vector<pair<int, int> > edges;
 
-	Node(int val):idx(val){}
 
-	void add_relation(int target, int weight) {
-        edges.emplace_back(target, weight);
-    }
+	Node(int val): idx(val)
+	{
+	}
+
+
+	void add_relation(int target, int weight)
+	{
+		edges.emplace_back(target, weight);
+	}
 };
 
-class Graph{
+class Graph
+{
 public:
 	int k;
 	int nnode;
 	int nedge;
 	vector<Node> nodes;
 
-	Graph() : k(-1), nnode(-1), nedge(-1){}
+
+	Graph() : k(-1), nnode(-1), nedge(-1)
+	{
+	}
+
 
 	// 构造函数（通过读图构造）
 	Graph(string filename, int nk)
 	{
-		ifstream fin(filename);		// 打开文件
+		ifstream fin(filename); // 打开文件
 		// 判断是否成功打开文件
 		if (!fin.is_open())
 		{
@@ -98,35 +111,42 @@ public:
 
 		// 初始化节点列表
 		nodes.reserve(nnode);
-		for (int i = 0; i < nnode; ++i) {
+		for (int i = 0; i < nnode; ++i)
+		{
 			nodes.emplace_back(i); // 假设节点编号从0开始
 		}
 
 		// 逐行读取邻接关系
 		string line;
 		int source_index = -1;
-		while (getline(fin, line)) {
+		while (getline(fin, line))
+		{
 			if (line.empty()) continue; // 跳过空行
 
 			istringstream ss(line);
-			vector<string> parts;
+			vector < string > parts;
 			string part;
 
 			// 分割行内容
-			while (ss >> part) {
+			while (ss >> part)
+			{
 				parts.push_back(part);
 			}
 
 			// 跳过行首冗余信息
 			source_index += 1;
-			if (source_index >= nnode) {
+			if (source_index >= nnode)
+			{
 				cerr << "错误: 超出顶点数量限制" << endl;
 				break;
 			}
 
 			// 解析邻接关系（从parts[1]开始）
-			for (size_t i = 1; i < parts.size(); i += 2) { // i=1跳过行首编号
-				if (i + 1 >= parts.size()) {
+			for (size_t i = 1; i < parts.size(); i += 2)
+			{
+				// i=1跳过行首编号
+				if (i + 1 >= parts.size())
+				{
 					cerr << "格式错误: 第 " << source_index + 1 << " 行数据不完整" << endl;
 					break;
 				}
@@ -136,9 +156,12 @@ public:
 				int weight = stoi(parts[i + 1]);
 
 				// 添加邻接关系
-				if (target_index >= 0 && target_index < nnode) {
+				if (target_index >= 0 && target_index < nnode)
+				{
 					nodes[source_index].add_relation(target_index, weight);
-				} else {
+				}
+				else
+				{
 					cerr << "无效的目标节点索引: " << target_index << endl;
 				}
 			}
@@ -150,14 +173,17 @@ public:
 
 	void print_graph()
 	{
-		for (int i = 0; i < nnode; i++) { // 遍历所有节点
+		for (int i = 0; i < nnode; i++)
+		{
+			// 遍历所有节点
 			cout << nodes[i].idx; // 输出当前节点编号（不带换行）
 
 			// 遍历当前节点的所有邻接关系
 			int nnbh = int(nodes[i].edges.size());
-			for (int j = 0; j < nnbh; j++) {
-				int adjv = nodes[i].edges[j].first;   // 邻接点索引
-				int adjw = nodes[i].edges[j].second;  // 边权值
+			for (int j = 0; j < nnbh; j++)
+			{
+				int adjv = nodes[i].edges[j].first; // 邻接点索引
+				int adjw = nodes[i].edges[j].second; // 边权值
 
 				cout << " " << adjv << " " << adjw;
 			}
@@ -168,13 +194,14 @@ public:
 	}
 };
 
-class Solution{
+class Solution
+{
 public:
 	int cost;
 	double btime;
-	vector<int> ptn;		// partioning
-	vector<int> sc;			// size_cluster
-//	vector<vector<int>>
+	vector<int> ptn; // partioning
+	vector<int> sc; // size_cluster
+	//	vector<vector<int>>
 
 	// 计算
 	int cal_pcost(const Graph &graph, const int &v1)
@@ -183,36 +210,37 @@ public:
 		int size = int(graph.nodes[v1].edges.size());
 
 		// 遍历所有邻接点
-		for(int i = 0; i < size; i++)
+		for (int i = 0; i < size; i++)
 		{
 			int v2 = graph.nodes[v1].edges[i].first;
 			int w = graph.nodes[v1].edges[i].second;
 
-			if(ptn[v1] == ptn[v2] && w < 0) pcost += abs(w);
-			if(ptn[v1] != ptn[v2] && w > 0) pcost += w;
+			if (ptn[v1] == ptn[v2] && w < 0) pcost += abs(w);
+			if (ptn[v1] != ptn[v2] && w > 0) pcost += w;
 		}
 
 		return pcost;
 	}
 
+
 	// 计算目标函数值
 	int cal_cost(const Graph &graph)
 	{
 		int ccost = 0;
-		for(int i = 0; i < graph.nnode; i++)
+		for (int i = 0; i < graph.nnode; i++)
 		{
 			int v1 = graph.nodes[i].idx;
 			int size = int(graph.nodes[v1].edges.size());
-			for(int j = 0; j < size; j++)
+			for (int j = 0; j < size; j++)
 			{
 				int v2 = graph.nodes[v1].edges[j].first;
 				int w = graph.nodes[v1].edges[j].second;
 
-				if(ptn[v1] == ptn[v2] && w < 0)
+				if (ptn[v1] == ptn[v2] && w < 0)
 					ccost += abs(w);
 
-				if(ptn[v1] != ptn[v2] && w > 0)
-					ccost +=  w;
+				if (ptn[v1] != ptn[v2] && w > 0)
+					ccost += w;
 			}
 		}
 
@@ -220,42 +248,46 @@ public:
 		return ccost;
 	}
 
+
 	// 构造一个空解
-	Solution() : cost(MAX_VALUE), btime(0.0), ptn(), sc() {}
+	Solution() : cost(MAX_VALUE), btime(0.0), ptn(), sc()
+	{
+	}
+
 
 	// 构造一个随机初始解，并更新每个分区中的点数和解对应的cost
 	Solution(const Graph &graph, clock_t cstime)
-		: btime(0.0), ptn(graph.nnode, 0), sc(graph.k, 0) {
-
+		: btime(0.0), ptn(graph.nnode, 0), sc(graph.k, 0)
+	{
 #if(DEBUG)
 		printf("debug--1.1.1\n");fflush(stdout);
 #endif
 
 		// 给每个分区随机分配一个点
-		int *randlist = new int[graph.nnode];			// 生成随机序列
+		int *randlist = new int[graph.nnode]; // 生成随机序列
 		Generate_Rand_List(randlist, graph.nnode);
 #if(DEBUG)
 		printf("debug--1.1.2\n");fflush(stdout);
 #endif
-		for(int pid = 0; pid < graph.k; pid++)
+		for (int pid = 0; pid < graph.k; pid++)
 		{
-//			printf("debug--1.1.2.1, pid=%d\n", pid);fflush(stdout);
+			//			printf("debug--1.1.2.1, pid=%d\n", pid);fflush(stdout);
 			int v = randlist[pid];
-//			printf("debug--1.1.2.2, v=%d\n", v);fflush(stdout);
+			//			printf("debug--1.1.2.2, v=%d\n", v);fflush(stdout);
 			ptn[v] = pid;
-//			printf("debug--1.1.2.3\n");fflush(stdout);
+			//			printf("debug--1.1.2.3\n");fflush(stdout);
 			sc[pid]++;
 		}
 #if(DEBUG)
 		printf("debug--1.1.3\n");fflush(stdout);
 #endif
 		// 剩余点随机分配
-		for(int i = graph.k; i < graph.nnode; i++)
+		for (int i = graph.k; i < graph.nnode; i++)
 		{
-			int v = randlist[i];			// 选点
-			int p = rand() % graph.k;				// 选分区
-			ptn[v] = p;						// 赋值
-			sc[p]++;						// 更新分区大小
+			int v = randlist[i]; // 选点
+			int p = rand() % graph.k; // 选分区
+			ptn[v] = p; // 赋值
+			sc[p]++; // 更新分区大小
 		}
 
 		delete[] randlist;
@@ -268,52 +300,175 @@ public:
 		btime = (clock() - cstime) / static_cast<double>(CLOCKS_PER_SEC);
 	}
 
+
+	// 还原论文的初始解构造函数
+	Solution(const Graph &graph, clock_t cstime, int type)
+		: btime(0.0), ptn(graph.nnode, 0), sc(graph.k, 0)
+	{
+#if(DEBUG)
+		printf("debug--1.1.1\n");fflush(stdout);
+#endif
+
+#if(DEBUG)
+		printf("debug--1.1.2\n");fflush(stdout);
+#endif
+
+		while (true)
+		{
+			// 初始化
+			unordered_set<int> candidate_nodes;
+			unordered_set<int> rest_nodes;
+			unordered_set<int> clst_elems[graph.k]; // 创建 k 个 unordered_set<int>，保存每个分区中的点
+			memset(sc, 0, sizeof(int) * graph.k);
+			memset(ptn, 0, sizeof(int) * graph.nnode);
+			for (int i = 0; i < graph.nnode; i++)
+			{
+				rest_nodes.insert(i);
+				if (int(graph.nodes[i].edges.size()) <= (graph.nnode - graph.k)) // 过滤掉邻接点数大于总节点数-k的点，增加随机选点成功的概率
+					candidate_nodes.insert(i);
+			}
+
+			// 1.先随机选择k个互不相连的点，分别放入每个分区
+			bool is_enough_k = true;
+			for (int pid = 0; pid < graph.k; pid++)
+			{
+				// 如果没有候选点了，此次随机选点失败，则结束此次随机选点
+				if (int(candidate_nodes.size()) < 1)
+				{
+					is_enough_k = false;
+					break;
+				}
+
+				// 从候选点中随机选择一个，放入当前分区
+				int rnd = rand() % int(candidate_nodes.size());
+				int v1 = candidate_nodes[rnd];
+				ptn[v1] = pid;
+				clst_elems[pid].insert(v1);
+				sc[pid]++;
+
+				// 移除相关元素
+				candidate_nodes.erase(v1);
+				rest_nodes.erase(v1);
+				for (auto iter = candidate_nodes.begin(); iter != candidate_nodes.end();) // 用迭代器遍历剩余候选点，删除v1的邻接点
+				{
+					// 判断该点是否为v1的邻接点
+					int v2 = *iter; // 获取当前点
+					bool is_exist = false;
+					for (int i = 0; i < int(graph.nodes[v1].edges.size()); i++) // 遍历v1的所有邻接点
+					{
+						int v_nbh = graph.nodes[v1].edges[i].first; // v1的第i个邻接点
+						if (v2 == v_nbh)
+						{
+							is_exist = true;
+							break;
+						}
+					}
+
+					// 如果v2是v1的邻接点，则删除该点
+					if (is_exist)
+					{
+						candidate_nodes.erase(iter++); // 删除该候选点并移动到下一个
+					}
+					else // 否则不特殊处理
+					{
+						++iter; // 普通前进
+					}
+				}
+
+				//			printf("debug--1.1.2.3\n");fflush(stdout);
+			}
+
+			// 如果候选点数量不足k个，则进行下一次随机
+			if (is_enough_k == false)
+				continue;
+#if(DEBUG)
+			printf("debug--1.1.3\n");fflush(stdout);
+#endif
+			// 分配剩余点
+			for (auto iter = rest_nodes.begin(); iter != rest_nodes.end(); ++iter)
+			{
+				int v = randlist[*iter]; // 选点
+				int cur_sum = 0, best_sum =
+				,
+				best_pid;
+				for (int i = 0; i < graph.k; ++i)
+				{
+				}
+				int p = rand() % graph.k; // 选分区
+				ptn[v] = p; // 赋值
+				clst_elems[p].insert(v);
+				sc[p]++; // 更新分区大小
+			}
+
+			if (is_enough_k == true) // 成功选出k个点，可以跳出循环
+				break;
+		}
+
+
+		delete[] randlist;
+
+		// 计算cost
+#if(DEBUG)
+		printf("debug--1.1.3\n");fflush(stdout);
+#endif
+		cost = cal_cost(graph);
+		btime = (clock() - cstime) / static_cast<double>(CLOCKS_PER_SEC);
+	}
+
+
 	// 通过复制另一个解来构造新解
 	Solution(const Solution &sol1)
-		: cost(sol1.cost), btime(sol1.btime), ptn(sol1.ptn), sc(sol1.sc) {}
+		: cost(sol1.cost), btime(sol1.btime), ptn(sol1.ptn), sc(sol1.sc)
+	{
+	}
+
 
 	// 复制另一个解
 	void cpy(const Solution &sol1)
 	{
 		cost = sol1.cost;
-		ptn = sol1.ptn;					// 深拷贝，改变该数组不会影响到sol1.ptn
+		ptn = sol1.ptn; // 深拷贝，改变该数组不会影响到sol1.ptn
 		sc = sol1.sc;
 		btime = sol1.btime;
 	}
+
 
 	bool verify(const Graph &graph)
 	{
 		bool is_true = false;
 
 		int vcost = 0;
-		for(int i = 0; i < graph.nnode; i++)
+		for (int i = 0; i < graph.nnode; i++)
 		{
 			int v1 = graph.nodes[i].idx;
 			int size = int(graph.nodes[v1].edges.size());
-			for(int j = 0; j < size; j++)
+			for (int j = 0; j < size; j++)
 			{
 				int v2 = graph.nodes[v1].edges[j].first;
 				int w = graph.nodes[v1].edges[j].second;
 
-				if(ptn[v1] == ptn[v2] && w < 0)
+				if (ptn[v1] == ptn[v2] && w < 0)
 					vcost += abs(w);
 
-				if(ptn[v1] != ptn[v2] && w > 0)
-					vcost +=  w;
+				if (ptn[v1] != ptn[v2] && w > 0)
+					vcost += w;
 			}
 		}
 
 		vcost /= 2;
 		return vcost;
 
-		if(vcost == cost)
+		if (vcost == cost)
 			is_true = true;
 
 		return is_true;
 	}
 
+
 	// 使用默认析构函数
-	~Solution() {}
+	~Solution()
+	{
+	}
 };
 
 
@@ -329,9 +484,9 @@ int K = 2;
 int runs = 1;
 
 // IMS算法参数
-int max_nipv = 10;				// IMS run length 50, 20
-double pct_sp = 0.05;			// percentage of strong perturb
-double pct_wp = 0.01;			// percentage of weak perturb
+int max_nipv = 10; // IMS run length 50, 20
+double pct_sp = 0.05; // percentage of strong perturb
+double pct_wp = 0.01; // percentage of weak perturb
 int sp, wp;
 
 /*
@@ -339,28 +494,28 @@ int sp, wp;
  */
 void Read_Parameters(int argc, char **argv)
 {
-//	for(int i = 1; i < argc; i++)
-//	{
-//		cout << argv[i] << endl;
-//	}
+	//	for(int i = 1; i < argc; i++)
+	//	{
+	//		cout << argv[i] << endl;
+	//	}
 
-	for (int i = 1; i < argc; i += 2)							// [0]表示'-'，[1]表示类型，[2]表示数据
+	for (int i = 1; i < argc; i += 2) // [0]表示'-'，[1]表示类型，[2]表示数据
 	{
 		if (argv[i][0] != '-')
 		{
 			exit(0);
 		}
-		else if (argv[i][1] == 'i')  // The file name
+		else if (argv[i][1] == 'i') // The file name
 		{
 			strncpy(filename, argv[i + 1], 1000);
-//		cerr << filename << endl;
+			//		cerr << filename << endl;
 		}
 		else if (argv[i][1] == 's') // The maximum time
 			seed = atoi(argv[i + 1]);
 		else if (argv[i][1] == 'r') // The maximum time
-			time_limit = atof(argv[i + 1]);			// ils 的迭代次数
+			time_limit = atof(argv[i + 1]); // ils 的迭代次数
 		else if (argv[i][1] == 'k') //not used
-			K = atoi(argv[i + 1]);			// ts的最大迭代次数比率
+			K = atoi(argv[i + 1]); // ts的最大迭代次数比率
 	}
 }
 
@@ -387,7 +542,7 @@ void free_memory(const Graph &graph)
 void multistart_relocation_heuristic(const Graph &graph, Solution &bsol, double tlimit)
 {
 	// 开始重启迭代
-	int riter = 0;								// restart_iter
+	int riter = 0; // restart_iter
 	clock_t cstime = clock();
 	while ((clock() - cstime) / static_cast<double>(CLOCKS_PER_SEC) < tlimit)
 	{
@@ -395,34 +550,35 @@ void multistart_relocation_heuristic(const Graph &graph, Solution &bsol, double 
 		printf("debug--1.1\n");fflush(stdout);
 #endif
 		// 生成初始解
-		Solution csol = Solution(graph, cstime);		// cur_sol
-		printf("init_cur_cost=%d\n", csol.cost);fflush(stdout);
-		Solution tsol = Solution(csol);			// temp_sol
+		Solution csol = Solution(graph, cstime); // cur_sol
+		printf("init_cur_cost=%d\n", csol.cost);
+		fflush(stdout);
+		Solution tsol = Solution(csol); // temp_sol
 
 #if(DEBUG)
 		printf("debug--1.2\n");fflush(stdout);
 #endif
 		bool improved = true;
-		while(improved)
+		while (improved)
 		{
 			improved = false;
 #if(DEBUG)
 			printf("debug--1.3\n");fflush(stdout);
 #endif
-			for(int i = 0; i < graph.nnode; i++)
+			for (int i = 0; i < graph.nnode; i++)
 			{
 				int vtx1 = i;
 #if(DEBUG)
 				printf("debug--1.5\n");fflush(stdout);
 #endif
-				for(int clst2 = 0; clst2 < graph.k; clst2++)
+				for (int clst2 = 0; clst2 < graph.k; clst2++)
 				{
 					int clst1 = csol.ptn[vtx1];
-					if(csol.sc[clst1] == 1 || clst2 == clst1)
+					if (csol.sc[clst1] == 1 || clst2 == clst1)
 						continue;
 
 					tsol.ptn[vtx1] = clst2;
-					if(tsol.cal_pcost(graph, vtx1) < csol.cal_pcost(graph, vtx1))
+					if (tsol.cal_pcost(graph, vtx1) < csol.cal_pcost(graph, vtx1))
 					{
 						csol.btime = (clock() - cstime) / static_cast<double>(CLOCKS_PER_SEC);
 						csol.sc[clst1]--;
@@ -430,7 +586,8 @@ void multistart_relocation_heuristic(const Graph &graph, Solution &bsol, double 
 						csol.sc[clst2]++;
 						improved = true;
 						csol.cost = csol.cal_cost(graph);
-						printf("cur_cost=%d\n", csol.cost);fflush(stdout);
+						printf("cur_cost=%d\n", csol.cost);
+						fflush(stdout);
 					}
 					else
 					{
@@ -445,9 +602,9 @@ void multistart_relocation_heuristic(const Graph &graph, Solution &bsol, double 
 		printf("debug--1.6\n");fflush(stdout);
 #endif
 		csol.cost = csol.cal_cost(graph);
-		if(csol.cost < bsol.cost)
+		if (csol.cost < bsol.cost)
 		{
-//			printf("RH round %d, time=%.4f, ccost=%d, improve=%d\n", riter, (clock() - cstime) / static_cast<double>(CLOCKS_PER_SEC), csol.cost, bsol.cost - csol.cost);fflush(stdout);
+			//			printf("RH round %d, time=%.4f, ccost=%d, improve=%d\n", riter, (clock() - cstime) / static_cast<double>(CLOCKS_PER_SEC), csol.cost, bsol.cost - csol.cost);fflush(stdout);
 			bsol.cpy(csol);
 		}
 		riter++;
@@ -456,7 +613,7 @@ void multistart_relocation_heuristic(const Graph &graph, Solution &bsol, double 
 #endif
 	}
 
-//	printf("=========================== RH END ===========================\n");fflush(stdout);
+	//	printf("=========================== RH END ===========================\n");fflush(stdout);
 
 	// 写入文件
 #if(DEBUG)
@@ -466,7 +623,8 @@ void multistart_relocation_heuristic(const Graph &graph, Solution &bsol, double 
 	char *graph_name = basename(filename);
 	sprintf(outputfile, "%soutput_dir/results_%s_%d.txt", root_path.c_str(), graph_name, K);
 	FILE *opf = fopen(outputfile, "a");
-	if (!opf) {
+	if (!opf)
+	{
 		perror("Failed to open RH output file");
 		exit(-1);
 	}
@@ -478,37 +636,41 @@ void multistart_relocation_heuristic(const Graph &graph, Solution &bsol, double 
 /*
  * 将初始解写入文件
  */
-void write_RH_sol(const Graph &graph, const Solution &csol, char *instancefile, const int &fno) {
-    // 获取文件名
-    char *graph_name = basename(instancefile);
+void write_RH_sol(const Graph &graph, const Solution &csol, char *instancefile, const int &fno)
+{
+	// 获取文件名
+	char *graph_name = basename(instancefile);
 
-    // 拼接文件路径
-    char rltfile[1000];
-    sprintf(rltfile, "%sinit_sols/%s_%d_%d", root_path.c_str(), graph_name, graph.k, fno);
+	// 拼接文件路径
+	char rltfile[1000];
+	sprintf(rltfile, "%sinit_sols/%s_%d_%d", root_path.c_str(), graph_name, graph.k, fno);
 
-    // 用 ofstream 打开文件
-    ofstream fout(rltfile);
-    if (!fout.is_open()) {
-        cerr << "无法打开文件: " << rltfile << endl;
-        exit(EXIT_FAILURE);
-    }
+	// 用 ofstream 打开文件
+	ofstream fout(rltfile);
+	if (!fout.is_open())
+	{
+		cerr << "无法打开文件: " << rltfile << endl;
+		exit(EXIT_FAILURE);
+	}
 
-    // 写入 cost
-    fout << csol.cost << endl;
+	// 写入 cost
+	fout << csol.cost << endl;
 
-    // 写入 ptn 数组
-    for (int i = 0; i < graph.nnode; i++) {
-        fout << csol.ptn[i] << " ";
-    }
-    fout << endl;
+	// 写入 ptn 数组
+	for (int i = 0; i < graph.nnode; i++)
+	{
+		fout << csol.ptn[i] << " ";
+	}
+	fout << endl;
 
-    // 写入 sc 数组
-    for (int i = 0; i < graph.k; i++) {
-        fout << csol.sc[i] << " ";
-    }
-    fout << endl;
+	// 写入 sc 数组
+	for (int i = 0; i < graph.k; i++)
+	{
+		fout << csol.sc[i] << " ";
+	}
+	fout << endl;
 
-    fout.close();
+	fout.close();
 }
 
 
@@ -520,7 +682,7 @@ void RH_run(char *instancefile, double timelimit)
 
 	// run 10 times algorithms
 	int crun = 0;
-	while(crun < runs)
+	while (crun < runs)
 	{
 		start = clock();
 
@@ -532,13 +694,12 @@ void RH_run(char *instancefile, double timelimit)
 		multistart_relocation_heuristic(graph, bsol, timelimit);
 		write_RH_sol(graph, bsol, instancefile, seed);
 		crun++;
-//		exit(-1);
+		//		exit(-1);
 	}
 
 	// 释放内存
 	free_memory(graph);
 }
-
 
 
 #endif /* RH_H_ */
