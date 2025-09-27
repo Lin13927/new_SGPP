@@ -11,7 +11,7 @@
 #include <iostream>
 using namespace std;
 
-#define isIMS 1
+#define isIMS 0
 #define isTS 0
 #define isVNS 0
 #define isILS 0
@@ -32,7 +32,8 @@ bool tuning = false;
 #elif(isVNS)
 #include "VNS.h"
 #else
-#include "RH.h"
+// #include "RH.h"
+#include "new_RH.h"
 #endif
 
 int main(int argc, char **argv)
@@ -124,7 +125,7 @@ int main(int argc, char **argv)
 #elif(isVNS)
 		VNS_run(filename, rltfile, time_limit);
 #else
-		RH_run(filename, time_limit);
+			RH_run(filename, time_limit);
 #endif
 		}
 

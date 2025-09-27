@@ -134,7 +134,7 @@ public:
 			if (line.empty()) continue; // 跳过空行
 
 			istringstream ss(line);
-			vector<string> parts;
+			vector < string > parts;
 			string part;
 
 			// 分割行内容
@@ -1598,8 +1598,13 @@ int get_weight(const Graph &graph, int vtx1, int vtx2)
  */
 void cal_swap_value(const Graph &graph, const Solution &csol)
 {
-	int swap_n = int(graph.nnode / graph.k);
-	vector<vector<pair<int, int> > > swap_v(graph.k);
+	// 重置数组
+	for (vector<int> &vec: Descending_swap_v)
+	{
+		vec.clear(); // 清空每个分区里的元素
+	}
+	int swap_n = int(graph.nnode / graph.k); // 平均每个分区中的点数
+	vector<vector<pair<int, int> > > swap_v(graph.k); // pid:权重，点下标(点i和pid的权重)
 	for (int vtx1 = 0; vtx1 < graph.nnode; vtx1++)
 	{
 		int v_cost = 0;
@@ -1622,11 +1627,12 @@ void cal_swap_value(const Graph &graph, const Solution &csol)
 
 	for (int pid = 0; pid < graph.k; pid++)
 	{
+		// 按照权重值来对swap_v排序
 		sort(swap_v[pid].begin(), swap_v[pid].end(), [](const pair<int, int> &a, const pair<int, double> &b)
 		{
 			return a.first > b.first;
 		});
-		int len_dsvk = int(Descending_swap_v[pid].size()); // length of descending swap [v] to [k]
+		int len_dsvk = int(swap_v[pid].size()); // length of descending swap [v] to [k]
 		if (len_dsvk >= swap_n)
 		{
 			for (int i = 0; i < swap_n; i++)

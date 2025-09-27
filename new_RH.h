@@ -124,7 +124,7 @@ public:
 			if (line.empty()) continue; // 跳过空行
 
 			istringstream ss(line);
-			vector < string > parts;
+			vector<string> parts;
 			string part;
 
 			// 分割行内容
@@ -301,6 +301,70 @@ public:
 	}
 
 
+	/**
+	 * 计算两个点的相似度
+	 * @param graph
+	 * @param vtx1
+	 * @param vtx2
+	 * @return
+	 */
+	int cal_similarity_v2v(const Graph &graph, int vtx1, int vtx2)
+	{
+		int sim = 0;
+
+		// 对比两个点的邻接点数，选择遍历顺序
+		vector<pair<int, int> > short_edges;
+		vector<pair<int, int> > long_edges;
+		unordered_set<int> long_nodes;
+		if (graph.nodes[vtx1].edges.size() <= graph.nodes[vtx2].edges.size())
+		{
+			short_edges = graph.nodes[vtx1].edges;
+			long_edges = graph.nodes[vtx2].edges;
+			for (int i = 0; i < int(graph.nodes[vtx2].edges.size()); i++)
+			{
+				int v2 = graph.nodes[vtx2].edges[i].first;
+				long_nodes.insert(v2);
+			}
+		}
+		else
+		{
+			short_edges = graph.nodes[vtx2].edges;
+			long_edges = graph.nodes[vtx1].edges;
+
+			for (int i = 0; i < int(graph.nodes[vtx1].edges.size()); i++)
+			{
+				int v2 = graph.nodes[vtx1].edges[i].first;
+				long_nodes.insert(v2);
+			}
+		}
+
+		// 遍历所有邻接点
+		for (int i = 0; i < int(short_edges.size()); i++)
+		{
+			int v1 = short_edges[i].first;
+			int w1 = short_edges[i].second;
+			// 判断long_nodes的邻接点中是否存在v1（时间复杂度O(1)）
+			if (long_nodes.contains(v1))
+			{
+				for (int j = 0; j < int(long_edges.size()); j++)
+				{
+					int v2 = long_edges[j].first;
+					int w2 = long_edges[j].second;
+					if (v1 == v2)
+					{
+						// 如果同为正边或同为负边，相似度加一
+						if ((w1 < 0 && w2 < 0) || (w1 > 0 && w2 > 0))
+							sim += 1;
+						break;
+					}
+				}
+			}
+		}
+
+		return sim;
+	}
+
+
 	// 还原论文的初始解构造函数
 	Solution(const Graph &graph, clock_t cstime, int type)
 		: btime(0.0), ptn(graph.nnode, 0), sc(graph.k, 0)
@@ -312,98 +376,52 @@ public:
 #if(DEBUG)
 		printf("debug--1.1.2\n");fflush(stdout);
 #endif
-
-		while (true)
+		int **num_nbh = new int *[graph.k];
+		for (int i = 0; i < graph.k; i++)
 		{
-			// 初始化
-			unordered_set<int> candidate_nodes;
-			unordered_set<int> rest_nodes;
-			unordered_set<int> clst_elems[graph.k]; // 创建 k 个 unordered_set<int>，保存每个分区中的点
-			memset(sc, 0, sizeof(int) * graph.k);
-			memset(ptn, 0, sizeof(int) * graph.nnode);
-			for (int i = 0; i < graph.nnode; i++)
-			{
-				rest_nodes.insert(i);
-				if (int(graph.nodes[i].edges.size()) <= (graph.nnode - graph.k)) // 过滤掉邻接点数大于总节点数-k的点，增加随机选点成功的概率
-					candidate_nodes.insert(i);
-			}
+			num_nbh[i] = new int[graph.nnode];
+		}
+		int *randlist = new int[graph.nnode]; // 生成随机序列
+		Generate_Rand_List(randlist, graph.nnode);
 
-			// 1.先随机选择k个互不相连的点，分别放入每个分区
-			bool is_enough_k = true;
-			for (int pid = 0; pid < graph.k; pid++)
-			{
-				// 如果没有候选点了，此次随机选点失败，则结束此次随机选点
-				if (int(candidate_nodes.size()) < 1)
-				{
-					is_enough_k = false;
-					break;
-				}
+		printf("开始执行新版随机初始解构造函数...");
 
-				// 从候选点中随机选择一个，放入当前分区
-				int rnd = rand() % int(candidate_nodes.size());
-				int v1 = candidate_nodes[rnd];
-				ptn[v1] = pid;
-				clst_elems[pid].insert(v1);
-				sc[pid]++;
-
-				// 移除相关元素
-				candidate_nodes.erase(v1);
-				rest_nodes.erase(v1);
-				for (auto iter = candidate_nodes.begin(); iter != candidate_nodes.end();) // 用迭代器遍历剩余候选点，删除v1的邻接点
-				{
-					// 判断该点是否为v1的邻接点
-					int v2 = *iter; // 获取当前点
-					bool is_exist = false;
-					for (int i = 0; i < int(graph.nodes[v1].edges.size()); i++) // 遍历v1的所有邻接点
-					{
-						int v_nbh = graph.nodes[v1].edges[i].first; // v1的第i个邻接点
-						if (v2 == v_nbh)
-						{
-							is_exist = true;
-							break;
-						}
-					}
-
-					// 如果v2是v1的邻接点，则删除该点
-					if (is_exist)
-					{
-						candidate_nodes.erase(iter++); // 删除该候选点并移动到下一个
-					}
-					else // 否则不特殊处理
-					{
-						++iter; // 普通前进
-					}
-				}
-
-				//			printf("debug--1.1.2.3\n");fflush(stdout);
-			}
-
-			// 如果候选点数量不足k个，则进行下一次随机
-			if (is_enough_k == false)
-				continue;
-#if(DEBUG)
-			printf("debug--1.1.3\n");fflush(stdout);
-#endif
-			// 分配剩余点
-			for (auto iter = rest_nodes.begin(); iter != rest_nodes.end(); ++iter)
-			{
-				int v = randlist[*iter]; // 选点
-				int cur_sum = 0, best_sum =
-				,
-				best_pid;
-				for (int i = 0; i < graph.k; ++i)
-				{
-				}
-				int p = rand() % graph.k; // 选分区
-				ptn[v] = p; // 赋值
-				clst_elems[p].insert(v);
-				sc[p]++; // 更新分区大小
-			}
-
-			if (is_enough_k == true) // 成功选出k个点，可以跳出循环
-				break;
+		// 1. 随机选择k个点，分别放入每个分区
+		unordered_set<int> clst_elems[graph.k]; // 创建 k 个 unordered_set<int>，保存每个分区中的点
+		for (int pid = 0; pid < graph.k; pid++)
+		{
+			int v = randlist[pid];
+			ptn[v] = pid;
+			sc[pid]++;
+			clst_elems[pid].insert(v);
 		}
 
+		// 剩余点随机分配
+		for (int i = graph.k; i < graph.nnode; i++)
+		{
+			int vtx1 = randlist[i]; // 选点
+
+			// 选分区
+			int best_pid = -1, best_sum = -1;
+			for (int pid = 0; pid < graph.k; pid++)
+			{
+				int sum_sim = 0;
+				for (int vtx2: clst_elems[pid])
+				{
+					sum_sim += cal_similarity_v2v(graph, vtx1, vtx2);
+				}
+				if (sum_sim > best_sum)
+				{
+					best_sum = sum_sim;
+					best_pid = pid;
+				}
+			}
+
+			// 放入分区
+			ptn[vtx1] = best_pid;
+			sc[best_pid]++;
+			clst_elems[best_pid].insert(vtx1);
+		}
 
 		delete[] randlist;
 
@@ -550,7 +568,8 @@ void multistart_relocation_heuristic(const Graph &graph, Solution &bsol, double 
 		printf("debug--1.1\n");fflush(stdout);
 #endif
 		// 生成初始解
-		Solution csol = Solution(graph, cstime); // cur_sol
+		Solution csol = Solution(graph, cstime, 1); // cur_sol
+		// Solution csol = Solution(graph, cstime); // cur_sol
 		printf("init_cur_cost=%d\n", csol.cost);
 		fflush(stdout);
 		Solution tsol = Solution(csol); // temp_sol
