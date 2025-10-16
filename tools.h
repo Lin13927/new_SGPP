@@ -43,8 +43,45 @@ void Generate_Rand_List(int *randlist, int len)
 //	fflush(stdout);
 }
 
+/**
+ * 快速排序预处理（把零值放在最前面，不参与递归的快速排序）
+ * @param idlist 索引序列
+ * @param objlist 目标函数序列（非负值）
+ * @param l  修改左边界的值
+ * @param r
+ */
+void Quick_Sort_preprocess_asc(int *idlist, int *objlist, int &l, int r, int min_value) {
+	for (int i = l; i < r; i++) {
+		// 如果遇到最小值，放在最前面，交换索引
+		if (objlist[i] == min_value) {
+			objlist[i] = objlist[l];
+			idlist[i] = idlist[l];
+			objlist[l] = min_value;
+			l++;
+		}
+	}
+}
 
-/* 升序排列 */
+/**
+ * 快速排序预处理（把零值放在最前面，不参与递归的快速排序）
+ * @param idlist 索引序列
+ * @param objlist 目标函数序列（非负值）
+ * @param l  修改左边界的值
+ * @param r
+ */
+void Quick_Sort_preprocess_desc(int *idlist, int *objlist, int l, int &r, int min_value) {
+	for (int i = r; i >= l; i--) {
+		// 如果遇到最小值，放在最后面，交换索引
+		if (objlist[i] == min_value) {
+			objlist[i] = objlist[r];
+			idlist[i] = idlist[r];
+			objlist[r] = min_value;
+			r--;
+		}
+	}
+}
+
+/* 升序排列（取第一个元素作为枢纽元素） */
 void Quick_Sort_asc(int *idlist, int *objlist, int l, int r)
 {
 	if (l < r)
@@ -78,7 +115,6 @@ void Quick_Sort_asc(int *idlist, int *objlist, int l, int r)
 		Quick_Sort_asc(idlist, objlist, left + 1, r);
 	}
 }
-
 
 /* 降序排列 */
 void Quick_Sort_desc(int *idlist, int *objlist, int l, int r)

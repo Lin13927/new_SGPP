@@ -826,8 +826,12 @@ void calculate_v1(const Graph &graph)
 	memcpy(obj_value2, obj_value1, sizeof(int) * graph.nnode);
 
 	// 排序
-	Quick_Sort_asc(asc_nodes1, obj_value1, 0, graph.nnode - 1);
-	Quick_Sort_desc(desc_nodes1, obj_value2, 0, graph.nnode - 1);
+	int left_idx = 0;
+	Quick_Sort_preprocess_asc(asc_nodes1, obj_value1, left_idx, graph.nnode - 1, 0);
+	Quick_Sort_asc(asc_nodes1, obj_value1, left_idx, graph.nnode - 1);
+	int right_idx = graph.nnode - 1;
+	Quick_Sort_preprocess_desc(desc_nodes1, obj_value2, 0, right_idx, 0);
+	Quick_Sort_desc(desc_nodes1, obj_value2, 0, right_idx);
 
 	// 释放内存
 	delete[] obj_value1;
@@ -865,8 +869,12 @@ void calculate_v2(const Graph &graph)
 	memcpy(obj_value2, obj_value1, sizeof(int) * graph.nnode);
 
 	// 排序
-	Quick_Sort_asc(asc_nodes2, obj_value1, 0, graph.nnode - 1);
-	Quick_Sort_desc(desc_nodes2, obj_value2, 0, graph.nnode - 1);
+	int left_idx = 0;
+	Quick_Sort_preprocess_asc(asc_nodes2, obj_value1, left_idx, graph.nnode - 1, 0);
+	Quick_Sort_asc(asc_nodes2, obj_value1, left_idx, graph.nnode - 1);
+	int right_idx = graph.nnode - 1;
+	Quick_Sort_preprocess_desc(asc_nodes2, obj_value2, 0, right_idx, 0);
+	Quick_Sort_desc(desc_nodes2, obj_value2, 0, right_idx);
 
 	// 释放内存
 	delete[] obj_value1;
@@ -905,8 +913,12 @@ void calculate_v3(const Graph &graph)
 	memcpy(obj_value2, obj_value1, sizeof(int) * graph.nnode);
 
 	// 排序
-	Quick_Sort_asc(asc_nodes3, obj_value1, 0, graph.nnode - 1);
-	Quick_Sort_desc(desc_nodes3, obj_value2, 0, graph.nnode - 1);
+	int left_idx = 0;
+	Quick_Sort_preprocess_asc(asc_nodes3, obj_value1, left_idx, graph.nnode - 1, 0);
+	Quick_Sort_asc(asc_nodes3, obj_value1, left_idx, graph.nnode - 1);
+	int right_idx = graph.nnode - 1;
+	Quick_Sort_preprocess_desc(asc_nodes3, obj_value2, 0, right_idx, 0);
+	Quick_Sort_desc(desc_nodes3, obj_value2, 0, right_idx);
 
 	// 释放内存
 	delete[] obj_value1;
@@ -3236,7 +3248,6 @@ void verify(const Graph &graph, Solution &bsol)
 			cerr << "分区" << i << "的点数小于0" << endl;
 			exit(-999);
 		}
-
 	}
 
 	// 2.验证cost
