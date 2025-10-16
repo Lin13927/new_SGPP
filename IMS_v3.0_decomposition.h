@@ -42,10 +42,10 @@
 
 #define is_Verify 0
 
-#define rMS_mode1 0       // Maxima search模式一：[概率]控制NBL和BL
+#define rMS_mode1 1       // Maxima search模式一：[概率]控制NBL和BL
 #define rMS_mode2 0       // Maxima search模式二：先NBL再BL
 #define rMS_mode3 0       // Maxima search模式三：先BL再NBL
-#define rMS_mode4 1       // Maxima search模式四：只有BL，作为调试base
+#define rMS_mode4 0       // Maxima search模式四：只有BL，作为调试base
 
 #define NDBLS_mode1 0  	  // ND-based_LS模式一：Add和Swap两种邻域都从初始解出发
 #define NDBLS_mode2 0  	  // ND-based_LS模式二：先Add，再Swap
@@ -448,15 +448,15 @@ double rbtime;
 //
 char filename[1001] = "./instances/slashdot-zoo.graph"; //
 int seed = 0;
-double time_limit = 120;
+double time_limit = 1800;
 int K = 64;
 int runs = 1;
 //int counter = 0; // Swap counters
 
 // IMS算法参数
-int max_nipv = 20; // IMS run length 10 (candidate values 50, 20)
-double pct_sp = 0.2; // percentage of strong perturb  0.1  【感觉这个值不能太小】
-double pct_wp = 0.01; // percentage of weak perturb   0.01
+int max_nipv = 50; // IMS run length 10 (candidate values 50, 20)  小图50  大图100
+double pct_sp = 0.2; // percentage of strong perturb  小图0.2  大图0.01
+double pct_wp = 0.01; // percentage of weak perturb   小图0.01 大图0.005
 int sp, wp;
 double param_q = 0.01; // 控制Swap的参数，biased_LS里面启动Swap的概率很小【= 1%】
 double param_b = 0.8; // 控制ND-based_local_search和biased_local_search的参数【= 0.8效果还可以】
@@ -813,6 +813,7 @@ void calculate_v1(const Graph &graph)
 	int *obj_value1 = new int[graph.nnode];
 	int *obj_value2 = new int[graph.nnode];
 	memset(obj_value1, 0, sizeof(int) * graph.nnode);
+	memset(obj_value2, 0, sizeof(int) * graph.nnode);
 
 	for (int i = 0; i < graph.nnode; i++)
 	{
@@ -855,6 +856,7 @@ void calculate_v2(const Graph &graph)
 	int *obj_value1 = new int[graph.nnode];
 	int *obj_value2 = new int[graph.nnode];
 	memset(obj_value1, 0, sizeof(int) * graph.nnode);
+	memset(obj_value2, 0, sizeof(int) * graph.nnode);
 
 	for (int i = 0; i < graph.nnode; i++)
 	{
@@ -898,11 +900,11 @@ void calculate_v3(const Graph &graph)
 	int *obj_value1 = new int[graph.nnode];
 	int *obj_value2 = new int[graph.nnode];
 	memset(obj_value1, 0, sizeof(int) * graph.nnode);
+	memset(obj_value2, 0, sizeof(int) * graph.nnode);
 
 	for (int i = 0; i < graph.nnode; i++)
 	{
 		int v1 = graph.nodes[i].idx;
-		assert(v1==i);
 		int size = int(graph.nodes[i].edges.size());
 		for (int j = 0; j < size; j++)
 		{
@@ -944,6 +946,7 @@ void calculate_v4(const Graph &graph, const Solution &csol)
 	int *obj_value1 = new int[graph.nnode];
 	int *obj_value2 = new int[graph.nnode];
 	memset(obj_value1, 0, sizeof(int) * graph.nnode);
+	memset(obj_value2, 0, sizeof(int) * graph.nnode);
 
 	for (int i = 0; i < graph.nnode; i++)
 	{
@@ -1436,7 +1439,7 @@ Solution local_search(const Graph &graph, const Solution &bsol, clock_t cstime)
 			int vtx1 = i;
 			int clst1 = csol.ptn[vtx1];
 			int size = int(graph.nodes[i].edges.size());
-			if (csol.sc[clst1] == 1 || size == 0)
+			if (csol.sc[clst1] <= 1 || size == 0)
 				continue;
 #if(DEBUG)
 			printf("debug--1.5\n");fflush(stdout);
@@ -1444,7 +1447,7 @@ Solution local_search(const Graph &graph, const Solution &bsol, clock_t cstime)
 			for (int clst2 = 0; clst2 < graph.k; clst2++)
 			{
 				if (clst2 == clst1) continue;
-				if (csol.sc[clst1] == 1) break;
+				if (csol.sc[clst1] <= 1) break;
 #if(is_trueGamma)
 				int delta = true_gamma[clst2][vtx1];
 #else
@@ -1499,7 +1502,7 @@ Solution biased_local_search1(const Graph &graph, const Solution &bsol, clock_t 
 			int vtx1 = asc_nodes1[i];
 			int clst1 = csol.ptn[vtx1];
 			int size = int(graph.nodes[i].edges.size());
-			if (csol.sc[clst1] == 1 || size == 0)
+			if (csol.sc[clst1] <= 1 || size == 0)
 				continue;
 #if(DEBUG)
 			printf("debug--1.5\n");fflush(stdout);
@@ -1507,7 +1510,7 @@ Solution biased_local_search1(const Graph &graph, const Solution &bsol, clock_t 
 			for (int clst2 = 0; clst2 < graph.k; clst2++)
 			{
 				if (clst2 == clst1) continue;
-				if (csol.sc[clst1] == 1) break;
+				if (csol.sc[clst1] <= 1) break;
 #if(is_trueGamma)
 				int delta = true_gamma[clst2][vtx1];
 #else
@@ -1562,7 +1565,7 @@ Solution biased_local_search2(const Graph &graph, const Solution &bsol, clock_t 
 			int vtx1 = asc_nodes2[i];
 			int clst1 = csol.ptn[vtx1];
 			int size = int(graph.nodes[i].edges.size());
-			if (csol.sc[clst1] == 1 || size == 0)
+			if (csol.sc[clst1] <= 1 || size == 0)
 				continue;
 #if(DEBUG)
 			printf("debug--1.5\n");fflush(stdout);
@@ -1570,7 +1573,7 @@ Solution biased_local_search2(const Graph &graph, const Solution &bsol, clock_t 
 			for (int clst2 = 0; clst2 < graph.k; clst2++)
 			{
 				if (clst2 == clst1) continue;
-				if (csol.sc[clst1] == 1) break;
+				if (csol.sc[clst1] <= 1) break;
 #if(is_trueGamma)
 				int delta = true_gamma[clst2][vtx1];
 #else
@@ -1625,7 +1628,7 @@ Solution biased_local_search3(const Graph &graph, const Solution &bsol, clock_t 
 			int vtx1 = asc_nodes3[i];
 			int clst1 = csol.ptn[vtx1];
 			int size = int(graph.nodes[i].edges.size());
-			if (csol.sc[clst1] == 1 || size == 0)
+			if (csol.sc[clst1] <= 1 || size == 0)
 				continue;
 #if(DEBUG)
 			printf("debug--1.5\n");fflush(stdout);
@@ -1633,7 +1636,7 @@ Solution biased_local_search3(const Graph &graph, const Solution &bsol, clock_t 
 			for (int clst2 = 0; clst2 < graph.k; clst2++)
 			{
 				if (clst2 == clst1) continue;
-				if (csol.sc[clst1] == 1) break;
+				if (csol.sc[clst1] <= 1) break;
 #if(is_trueGamma)
 				int delta = true_gamma[clst2][vtx1];
 #else
@@ -1689,7 +1692,7 @@ Solution biased_local_search4(const Graph &graph, const Solution &bsol, clock_t 
 			int vtx1 = asc_nodes4[i];
 			int clst1 = csol.ptn[vtx1];
 			int size = int(graph.nodes[i].edges.size());
-			if (csol.sc[clst1] == 1 || size == 0)
+			if (csol.sc[clst1] <= 1 || size == 0)
 				continue;
 #if(DEBUG)
 			printf("debug--1.5\n");fflush(stdout);
@@ -1697,7 +1700,7 @@ Solution biased_local_search4(const Graph &graph, const Solution &bsol, clock_t 
 			for (int clst2 = 0; clst2 < graph.k; clst2++)
 			{
 				if (clst2 == clst1) continue;
-				if (csol.sc[clst1] == 1) break;
+				if (csol.sc[clst1] <= 1) break;
 #if(is_trueGamma)
 				int delta = true_gamma[clst2][vtx1];
 #else
@@ -2984,10 +2987,12 @@ Solution rel_Maxima_search1(const Graph &graph, Solution &csol, clock_t cstime, 
 			}
 			bsol.cpy(csol);
 
-			printf("IMS weak ni:%d, time=%.4f, best cost=%d\n",
+			printf("IMS weak ni:%d, time=%.4f, cost=%d, best_time=%.4f, best_cost=%d\n",
 					non_improve,
 					(clock() - cstime) / static_cast<double>(CLOCKS_PER_SEC),
-					bsol.cost);fflush(stdout);
+					bsol.cost,
+					rbtime,
+					rbcost);fflush(stdout);
 
 			non_improve = 0;
 		}
@@ -3163,9 +3168,10 @@ void iterated_maxima_search(const Graph &graph, Solution &csol, double tlimit)
 		{
 			bsol.cpy(nsol1);
 		}
-		printf("IMS strong restarts:%d, time=%.4f, best cost=%d\n\n",
+		printf("IMS strong restarts:%d, time=%.4f, best time=%.4f, best cost=%d\n\n",
 				iter,
 				(clock() - cstime) / static_cast<double>(CLOCKS_PER_SEC),
+				bsol.btime,
 				bsol.cost);fflush(stdout);
 
 		iter++;
@@ -3246,8 +3252,9 @@ void verify(const Graph &graph, Solution &bsol)
 		if (bsol.sc[i] <= 0)
 		{
 			cerr << "分区" << i << "的点数小于0" << endl;
-			exit(-999);
+//			exit(-999);
 		}
+
 	}
 
 	// 2.验证cost
@@ -3280,7 +3287,7 @@ void write_IMSSDN_sol(const Graph &graph, const Solution &csol, char *instancefi
 	}
 
 	// 写入 cost
-	fout << "cost=" << csol.cost << endl;
+    fout << "cost=" << csol.cost << endl;
     fout << "cost=" << csol.cost << endl;
     fout << "best_cost=" << rbcost << endl;
     fout << "best_time=" << rbtime << endl;
