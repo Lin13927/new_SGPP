@@ -53,7 +53,7 @@
 #define NDBLS_mode4 1  	  // ND-based_LS模式四：只有Add，+以概率选择Swap
 
 #define is_probSwap 0     // 用[概率]控制是否要Swap
-#define is_trueGamma 1    // 使用gamma总表来获取delta
+#define is_trueGamma 0    // 使用gamma总表来获取delta
 
 string root_path;
 
@@ -446,7 +446,7 @@ int rbcost;
 double rbtime;
 
 //
-char filename[1001] = "./instances/slashdot-zoo.graph"; //
+char filename[1001] = "./instances/chess.graph"; //
 int seed = 0;
 double time_limit = 1800;
 int K = 64;
