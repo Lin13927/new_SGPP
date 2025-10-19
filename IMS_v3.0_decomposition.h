@@ -40,7 +40,7 @@
 
 #define MAX_VALUE 99999999
 
-#define is_Verify 0
+#define is_Verify 1
 
 #define rMS_mode1 1       // Maxima search模式一：[概率]控制NBL和BL
 #define rMS_mode2 0       // Maxima search模式二：先NBL再BL
@@ -53,7 +53,7 @@
 #define NDBLS_mode4 1  	  // ND-based_LS模式四：只有Add，+以概率选择Swap
 
 #define is_probSwap 0     // 用[概率]控制是否要Swap
-#define is_trueGamma 0    // 使用gamma总表来获取delta
+#define is_trueGamma 1    // 使用gamma总表来获取delta
 
 string root_path;
 
@@ -379,6 +379,8 @@ public:
 	}
 
 
+
+
 	// 使用默认析构函数
 	~Solution()
 	{
@@ -526,6 +528,67 @@ void IMS_run(char *instancefile, double timelimit);
 // ====================================================
 // ====================================================
 
+bool verify_gamma(const Graph &graph, const Solution &csol)
+{
+	bool is_true = true;
+	int **v_pos_gamma, **v_neg_gamma;
+	v_pos_gamma = new int *[graph.k];
+	for (int i = 0; i < graph.k; i++) {
+		v_pos_gamma[i] = new int[graph.nnode];
+	}
+	v_neg_gamma = new int *[graph.k];
+	for (int i = 0; i < graph.k; i++) {
+		v_neg_gamma[i] = new int[graph.nnode];
+	}
+
+	//
+	for (int i = 0; i < graph.k; i++)
+	{
+		memset(v_neg_gamma[i], 0, sizeof(int) * graph.nnode);
+		memset(v_pos_gamma[i], 0, sizeof(int) * graph.nnode);
+	}
+
+	// 更新分开的gamma表
+	for (int v1 = 0; v1 < graph.nnode; v1++)
+	{
+		int size = int(graph.nodes[v1].edges.size());
+		for (int j = 0; j < size; j++)
+		{
+			int v2 = graph.nodes[v1].edges[j].first;
+			int w = graph.nodes[v1].edges[j].second;
+			int p = csol.ptn[v2];
+
+			if (w < 0)
+				v_neg_gamma[p][v1] += abs(w);
+			else
+				v_pos_gamma[p][v1] += w;
+		}
+	}
+
+	// 验证gamma表
+	for (int i = 0; i < graph.k; i++) {
+		for (int j = 0; j < graph.nnode; j++)
+		{
+			if (v_neg_gamma[i][j] != neg_gamma[i][j] || v_pos_gamma[i][j] != pos_gamma[i][j]) {
+				is_true = false;
+				printf("gamma_%d_%d不对", i, j);
+				break;
+				// exit(-77);
+			}
+		}
+		if (!is_true)
+			break;
+	}
+
+	for (int i = 0; i < graph.k; i++) {
+		delete[] v_neg_gamma[i];
+		delete[] v_pos_gamma[i];
+	}
+	delete[] v_neg_gamma;
+	delete[] v_pos_gamma;
+
+	return is_true;
+}
 
 /*
  * 读参数
@@ -763,6 +826,8 @@ void read_RH_sol(const Graph &graph, Solution &csol, char *instancefile, const i
 	if (!sol_file.is_open())
 	{
 		cerr << "无法打开解文件: " << rltfile << endl;
+
+		// 随机生成一个文件
 //		exit(-20);
 	}
 
@@ -1028,8 +1093,21 @@ void init_Gamma(const Graph &graph, const Solution &csol)
  */
 void update_Gamma(const Graph &graph, Solution &csol, const Gain_node &gnode)
 {
+#if(is_Verify)
+	// 验证
+	if (csol.cost != csol.cal_cost(graph))
+	{
+		printf("Error Cost when update_Gamma: ccost=%d, vcost=%d", csol.cost, csol.cal_cost(graph));fflush(stdout);
+		assert(csol.cost == csol.cal_cost(graph));
+	}
+#endif
+
 	if (gnode.type == 0)  // Add
 	{
+#if(is_Verify)
+		// cout << "type=0" << endl;
+#endif
+
 		int v1 = gnode.elem1;
 		int p1 = csol.ptn[v1];
 		int p2 = gnode.elem2;
@@ -1099,6 +1177,9 @@ void update_Gamma(const Graph &graph, Solution &csol, const Gain_node &gnode)
 	}
 	else if (gnode.type == 1)  // Swap
 	{
+#if(is_Verify)
+		cout << "type=1" << endl;
+#endif
 		int v1 = gnode.elem1;
 		int v2 = gnode.elem2;
 		int p1 = csol.ptn[v1];
@@ -1122,12 +1203,34 @@ void update_Gamma(const Graph &graph, Solution &csol, const Gain_node &gnode)
 				pos_gamma[p2][v2] += w;
 			}
 		}
+
+		// v2 → p1
+		size = graph.nodes[v2].edges.size();
+		for (int j = 0; j < size; j++)
+		{
+			int v1 = graph.nodes[v2].edges[j].first;
+			int w = graph.nodes[v2].edges[j].second;
+
+			if (w < 0)
+			{
+				neg_gamma[p2][v1] -= abs(w);
+				neg_gamma[p1][v1] += abs(w);
+			}
+			else
+			{
+				pos_gamma[p2][v1] -= w;
+				pos_gamma[p1][v1] += w;
+			}
+		}
+
 		// 移动
 		csol.ptn[v1] = p2;
+		csol.ptn[v2] = p1;
+		csol.cost += gnode.delta;
 
 #if(is_trueGamma)
 		// 移动点v1的true_gamma
-		int clst1 = csol.ptn[v1];
+		int clst1 = p1;
 		for (int clst2 = 0; clst2 < graph.k; clst2++)
 		{
 			if (clst2 == csol.ptn[v1])
@@ -1159,33 +1262,9 @@ void update_Gamma(const Graph &graph, Solution &csol, const Gain_node &gnode)
 				}
 			}
 		}
-#endif
 
-		// v2 → p1
-		size = graph.nodes[v2].edges.size();
-		for (int j = 0; j < size; j++)
-		{
-			int v1 = graph.nodes[v2].edges[j].first;
-			int w = graph.nodes[v2].edges[j].second;
-
-			if (w < 0)
-			{
-				neg_gamma[p2][v1] -= abs(w);
-				neg_gamma[p1][v1] += abs(w);
-			}
-			else
-			{
-				pos_gamma[p2][v1] -= w;
-				pos_gamma[p1][v1] += w;
-			}
-		}
-
-		// 移动
-		csol.ptn[v2] = p1;
-
-#if(is_trueGamma)
 		// 移动点v2的true_gamma
-		clst1 = csol.ptn[v2];
+		clst1 = p2;
 		for (int clst2 = 0; clst2 < graph.k; clst2++)
 		{
 			if (clst2 == csol.ptn[v2])
@@ -1218,17 +1297,17 @@ void update_Gamma(const Graph &graph, Solution &csol, const Gain_node &gnode)
 			}
 		}
 #endif
-		// 移动
-		csol.cost += gnode.delta;
 	}
 
 #if(is_Verify)
 	// 验证
 	if (csol.cost != csol.cal_cost(graph))
 	{
-		printf("ccost=%d, vcost=%d", csol.cost, csol.cal_cost(graph));fflush(stdout);
-		exit(-666);
+		printf("Error Cost when update_Gamma: ccost=%d, vcost=%d", csol.cost, csol.cal_cost(graph));
+		printf("Type:%d, node1:%d, node2:%d, delta:%d", gnode.type, gnode.elem1, gnode.elem2, gnode.delta);
+		fflush(stdout);
 		assert(csol.cost == csol.cal_cost(graph));
+		assert(verify_gamma(graph, csol));
 	}
 #endif
 }
@@ -1446,13 +1525,22 @@ Solution local_search(const Graph &graph, const Solution &bsol, clock_t cstime)
 #endif
 			for (int clst2 = 0; clst2 < graph.k; clst2++)
 			{
+				clst1 = csol.ptn[vtx1];
 				if (clst2 == clst1) continue;
 				if (csol.sc[clst1] <= 1) break;
 #if(is_trueGamma)
 				int delta = true_gamma[clst2][vtx1];
+				// assert(delta == neg_gamma[clst2][vtx1] - neg_gamma[clst1][vtx1]
+						  // + pos_gamma[clst1][vtx1] - pos_gamma[clst2][vtx1]);
+				if (delta != neg_gamma[clst2][vtx1] - neg_gamma[clst1][vtx1]
+						  + pos_gamma[clst1][vtx1] - pos_gamma[clst2][vtx1]) {
+					printf("delta=%d, old_delta=%d", delta, neg_gamma[clst2][vtx1] - neg_gamma[clst1][vtx1]);
+					fflush(stdout);
+				}
 #else
 				int delta = neg_gamma[clst2][vtx1] - neg_gamma[clst1][vtx1]
 						  + pos_gamma[clst1][vtx1] - pos_gamma[clst2][vtx1];
+				neg_gamma[clst2][vtx1] - neg_gamma[clst1][vtx1] - pos_gamma[clst2][vtx1] + pos_gamma[clst1][vtx1]
 #endif
 				if (delta < 0)
 				{
@@ -1461,6 +1549,7 @@ Solution local_search(const Graph &graph, const Solution &bsol, clock_t cstime)
 					improved = true;
 #if(is_Verify)
 					assert(csol.cost == csol.cal_cost(graph));
+					assert(verify_gamma(graph, csol));
 #endif
 				}
 			}
@@ -1523,6 +1612,7 @@ Solution biased_local_search1(const Graph &graph, const Solution &bsol, clock_t 
 					update_Gamma(graph, csol, gn);
 #if(is_Verify)
 					assert(csol.cost == csol.cal_cost(graph));
+					assert(verify_gamma(graph, csol));
 #endif
 					improved = true;
 				}
@@ -1586,6 +1676,7 @@ Solution biased_local_search2(const Graph &graph, const Solution &bsol, clock_t 
 					update_Gamma(graph, csol, gn);
 #if(is_Verify)
 					assert(csol.cost == csol.cal_cost(graph));
+					assert(verify_gamma(graph, csol));
 #endif
 					improved = true;
 				}
@@ -1650,6 +1741,7 @@ Solution biased_local_search3(const Graph &graph, const Solution &bsol, clock_t 
 					update_Gamma(graph, csol, gn);
 #if(is_Verify)
 					assert(csol.cost == csol.cal_cost(graph));
+					assert(verify_gamma(graph, csol));
 #endif
 					improved = true;
 				}
@@ -1713,6 +1805,7 @@ Solution biased_local_search4(const Graph &graph, const Solution &bsol, clock_t 
 					update_Gamma(graph, csol, gn);
 #if(is_Verify)
 					assert(csol.cost == csol.cal_cost(graph));
+					assert(verify_gamma(graph, csol));
 #endif
 					improved = true;
 				}
@@ -2221,6 +2314,7 @@ Solution swap_local_search(const Graph &graph, const Solution &bsol, clock_t cst
 							update_Gamma(graph, csol, gn);
 #if(is_Verify)
 							assert(csol.cost == csol.cal_cost(graph));
+							assert(verify_gamma(graph, csol));
 #endif
 							improved = true;
 						}
@@ -2251,6 +2345,10 @@ Solution local_search_decomposition(const Graph &graph, const Solution &bsol, cl
 //	printf("========================== LSD BEGIN ==========================\n");fflush(stdout);
 	Solution csol = Solution(bsol);
 	init_Gamma(graph, csol);
+#if(is_Verify)
+	assert(csol.cost == csol.cal_cost(graph));
+	// assert(verify_gamma(graph, csol));
+#endif
 
 	// 获取每个分区中的元素序列
 	/* unordered_set是C++标准库STL中的一种无序集合容器，底层采用哈希表实现，支持快速查找、插入和删除操作，平均时间复杂度为O(1)。
@@ -2325,6 +2423,7 @@ Solution local_search_decomposition(const Graph &graph, const Solution &bsol, cl
 #if(is_Verify)
 						assert(csol.sc[clst1] > 0 && csol.sc[clst2] > 0);
 						assert(csol.cost == csol.cal_cost(graph));
+						assert(verify_gamma(graph, csol));
 #endif
 					}
 				}
@@ -2436,6 +2535,7 @@ Solution swap_local_search_decomposition(const Graph &graph, const Solution &bso
 							flag = true;
 #if(is_Verify)
 							assert(csol.cost == csol.cal_cost(graph));
+							assert(verify_gamma(graph, csol));
 #endif
 						}
 					}
@@ -2798,6 +2898,7 @@ Solution rel_Maxima_search(const Graph &graph, Solution &csol, clock_t cstime, d
 
 #if(is_Verify)
 	assert(csol.cost > 0);
+	assert(verify_gamma(graph, csol));
 #endif
 	Solution bsol0 = Solution(local_search(graph, csol, cstime));
 	Solution bsol1 = Solution(biased_local_search1(graph, csol, cstime));
@@ -2922,6 +3023,10 @@ Solution rel_Maxima_search(const Graph &graph, Solution &csol, clock_t cstime, d
 			non_improve++;
 	}
 
+#if(is_Verify)
+	assert(bsol.cost == bsol.cal_cost(graph));
+	assert(verify_gamma(graph, bsol));
+#endif
 	return bsol;
 }
 
@@ -2966,7 +3071,15 @@ Solution rel_Maxima_search1(const Graph &graph, Solution &csol, clock_t cstime, 
 		printf("debug--1.1\n");fflush(stdout);
 #endif
 		csol.cpy(bsol); // maxima search，有点类似于intensification
+#if(is_Verify)
+		assert(csol.cost == csol.cal_cost(graph));
+		// assert(verify_gamma(graph, csol));
+#endif
 		shake(graph, csol, wp);
+#if(is_Verify)
+		assert(csol.cost == csol.cal_cost(graph));
+		// assert(verify_gamma(graph, csol));
+#endif
 
 		double rnd = ((double) rand() / RAND_MAX);
 		if (rnd < param_b /** K / graph.nnode*/)
@@ -2999,7 +3112,10 @@ Solution rel_Maxima_search1(const Graph &graph, Solution &csol, clock_t cstime, 
 		else
 			non_improve++;
 	}
-
+#if(is_Verify)
+	assert(bsol.cost == bsol.cal_cost(graph));
+	assert(verify_gamma(graph, bsol));
+#endif
 	return bsol;
 }
 
@@ -3013,6 +3129,7 @@ Solution rel_Maxima_search2(const Graph &graph, Solution &csol, clock_t cstime, 
 
 #if(is_Verify)
 	assert(csol.cost > 0);
+	assert(verify_gamma(graph, csol));
 #endif
 
 	// 注意，这里是顺序执行，不是从同一个解出发
@@ -3061,7 +3178,10 @@ Solution rel_Maxima_search2(const Graph &graph, Solution &csol, clock_t cstime, 
 		else
 			non_improve++;
 	}
-
+#if(is_Verify)
+	assert(bsol.cost == bsol.cal_cost(graph));
+	assert(verify_gamma(graph, bsol));
+#endif
 	return bsol;
 }
 
@@ -3075,6 +3195,7 @@ Solution rel_Maxima_search3(const Graph &graph, Solution &csol, clock_t cstime, 
 
 #if(is_Verify)
 	assert(csol.cost > 0);
+	assert(verify_gamma(graph, csol));
 #endif
 
 	// 注意，这里是顺序执行，不是从同一个解出发
@@ -3099,7 +3220,16 @@ Solution rel_Maxima_search3(const Graph &graph, Solution &csol, clock_t cstime, 
 		printf("debug--1.1\n");fflush(stdout);
 #endif
 		csol.cpy(bsol); // maxima search，有点类似于intensification
+
+#if(is_Verify)
+		assert(csol.cost == csol.cal_cost(graph));
+		assert(verify_gamma(graph, csol));
+#endif
 		csol = shake(graph, csol, wp);
+#if(is_Verify)
+		assert(csol.cost == csol.cal_cost(graph));
+		assert(verify_gamma(graph, csol));
+#endif
 
 		Solution nsol1 = Biased_LS(graph, csol, cstime, tlimit);
 		Solution nsol2 = ND_based_LS(graph, nsol1, cstime, tlimit);
@@ -3124,6 +3254,10 @@ Solution rel_Maxima_search3(const Graph &graph, Solution &csol, clock_t cstime, 
 			non_improve++;
 	}
 
+#if(is_Verify)
+	assert(bsol.cost == bsol.cal_cost(graph));
+	assert(verify_gamma(graph, bsol));
+#endif
 	return bsol;
 }
 
