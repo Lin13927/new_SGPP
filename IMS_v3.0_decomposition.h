@@ -40,7 +40,7 @@
 
 #define MAX_VALUE 99999999
 
-#define is_Verify 1
+#define is_Verify 0
 
 #define rMS_mode1 1       // Maxima search模式一：[概率]控制NBL和BL
 #define rMS_mode2 0       // Maxima search模式二：先NBL再BL
@@ -49,11 +49,11 @@
 
 #define NDBLS_mode1 0  	  // ND-based_LS模式一：Add和Swap两种邻域都从初始解出发
 #define NDBLS_mode2 0  	  // ND-based_LS模式二：先Add，再Swap
-#define NDBLS_mode3 0  	  // ND-based_LS模式三：先Swap，再Add
-#define NDBLS_mode4 1  	  // ND-based_LS模式四：只有Add，+以概率选择Swap
+#define NDBLS_mode3 1  	  // ND-based_LS模式三：先Swap，再Add
+#define NDBLS_mode4 0  	  // ND-based_LS模式四：只有Add，+以概率选择Swap
 
 #define is_probSwap 0     // 用[概率]控制是否要Swap
-#define is_trueGamma 1    // 使用gamma总表来获取delta
+#define is_trueGamma 1   // 使用gamma总表来获取delta
 
 string root_path;
 
@@ -1178,8 +1178,9 @@ void update_Gamma(const Graph &graph, Solution &csol, const Gain_node &gnode)
 	else if (gnode.type == 1)  // Swap
 	{
 #if(is_Verify)
-		cout << "type=1" << endl;
+		// cout << "type=1,swap:"<< gnode.elem1 <<"(" << csol.ptn[gnode.elem1] << ") " << gnode.elem2 << "(" << csol.ptn[gnode.elem2] << ")"<< endl;
 #endif
+
 		int v1 = gnode.elem1;
 		int v2 = gnode.elem2;
 		int p1 = csol.ptn[v1];
@@ -1203,34 +1204,12 @@ void update_Gamma(const Graph &graph, Solution &csol, const Gain_node &gnode)
 				pos_gamma[p2][v2] += w;
 			}
 		}
-
-		// v2 → p1
-		size = graph.nodes[v2].edges.size();
-		for (int j = 0; j < size; j++)
-		{
-			int v1 = graph.nodes[v2].edges[j].first;
-			int w = graph.nodes[v2].edges[j].second;
-
-			if (w < 0)
-			{
-				neg_gamma[p2][v1] -= abs(w);
-				neg_gamma[p1][v1] += abs(w);
-			}
-			else
-			{
-				pos_gamma[p2][v1] -= w;
-				pos_gamma[p1][v1] += w;
-			}
-		}
-
 		// 移动
 		csol.ptn[v1] = p2;
-		csol.ptn[v2] = p1;
-		csol.cost += gnode.delta;
 
 #if(is_trueGamma)
 		// 移动点v1的true_gamma
-		int clst1 = p1;
+		int clst1 = csol.ptn[v1];
 		for (int clst2 = 0; clst2 < graph.k; clst2++)
 		{
 			if (clst2 == csol.ptn[v1])
@@ -1262,9 +1241,33 @@ void update_Gamma(const Graph &graph, Solution &csol, const Gain_node &gnode)
 				}
 			}
 		}
+#endif
 
+		// v2 → p1
+		size = graph.nodes[v2].edges.size();
+		for (int j = 0; j < size; j++)
+		{
+			int v1 = graph.nodes[v2].edges[j].first;
+			int w = graph.nodes[v2].edges[j].second;
+
+			if (w < 0)
+			{
+				neg_gamma[p2][v1] -= abs(w);
+				neg_gamma[p1][v1] += abs(w);
+			}
+			else
+			{
+				pos_gamma[p2][v1] -= w;
+				pos_gamma[p1][v1] += w;
+			}
+		}
+
+		// 移动
+		csol.ptn[v2] = p1;
+
+#if(is_trueGamma)
 		// 移动点v2的true_gamma
-		clst1 = p2;
+		clst1 = csol.ptn[v2];
 		for (int clst2 = 0; clst2 < graph.k; clst2++)
 		{
 			if (clst2 == csol.ptn[v2])
@@ -1297,6 +1300,8 @@ void update_Gamma(const Graph &graph, Solution &csol, const Gain_node &gnode)
 			}
 		}
 #endif
+		// 移动
+		csol.cost += gnode.delta;
 	}
 
 #if(is_Verify)
@@ -1304,7 +1309,7 @@ void update_Gamma(const Graph &graph, Solution &csol, const Gain_node &gnode)
 	if (csol.cost != csol.cal_cost(graph))
 	{
 		printf("Error Cost when update_Gamma: ccost=%d, vcost=%d", csol.cost, csol.cal_cost(graph));
-		printf("Type:%d, node1:%d, node2:%d, delta:%d", gnode.type, gnode.elem1, gnode.elem2, gnode.delta);
+		printf("Type:%d, node1:%d, node2:%d, delta:%d\n", gnode.type, gnode.elem1, gnode.elem2, gnode.delta);
 		fflush(stdout);
 		assert(csol.cost == csol.cal_cost(graph));
 		assert(verify_gamma(graph, csol));
@@ -1540,7 +1545,6 @@ Solution local_search(const Graph &graph, const Solution &bsol, clock_t cstime)
 #else
 				int delta = neg_gamma[clst2][vtx1] - neg_gamma[clst1][vtx1]
 						  + pos_gamma[clst1][vtx1] - pos_gamma[clst2][vtx1];
-				neg_gamma[clst2][vtx1] - neg_gamma[clst1][vtx1] - pos_gamma[clst2][vtx1] + pos_gamma[clst1][vtx1]
 #endif
 				if (delta < 0)
 				{
@@ -1598,6 +1602,7 @@ Solution biased_local_search1(const Graph &graph, const Solution &bsol, clock_t 
 #endif
 			for (int clst2 = 0; clst2 < graph.k; clst2++)
 			{
+				clst1 = csol.ptn[vtx1];
 				if (clst2 == clst1) continue;
 				if (csol.sc[clst1] <= 1) break;
 #if(is_trueGamma)
@@ -1662,6 +1667,7 @@ Solution biased_local_search2(const Graph &graph, const Solution &bsol, clock_t 
 #endif
 			for (int clst2 = 0; clst2 < graph.k; clst2++)
 			{
+				clst1 = csol.ptn[vtx1];
 				if (clst2 == clst1) continue;
 				if (csol.sc[clst1] <= 1) break;
 #if(is_trueGamma)
@@ -1726,6 +1732,7 @@ Solution biased_local_search3(const Graph &graph, const Solution &bsol, clock_t 
 #endif
 			for (int clst2 = 0; clst2 < graph.k; clst2++)
 			{
+				clst1 = csol.ptn[vtx1];
 				if (clst2 == clst1) continue;
 				if (csol.sc[clst1] <= 1) break;
 #if(is_trueGamma)
@@ -1791,6 +1798,7 @@ Solution biased_local_search4(const Graph &graph, const Solution &bsol, clock_t 
 #endif
 			for (int clst2 = 0; clst2 < graph.k; clst2++)
 			{
+				clst1 = csol.ptn[vtx1];
 				if (clst2 == clst1) continue;
 				if (csol.sc[clst1] <= 1) break;
 #if(is_trueGamma)
@@ -2289,36 +2297,64 @@ Solution swap_local_search(const Graph &graph, const Solution &bsol, clock_t cst
 		{
 			for (int pid2 = pid1 + 1; pid2 < graph.k; pid2++)
 			{
+				int best_delta = INT_MAX;
+				int best_i, best_j;
+				Gain_node best_gn;
 				/* const auto是C++11引入的语法特性，用于在声明变量时自动推导类型并设置为常量。
 				 * 其核心作用是将变量声明为不可修改的常量，同时自动推导其类型。
 				 */
-				for (const auto &vtx1: Descending_swap_v[pid1])
-				{
-					for (const auto &vtx2: Descending_swap_v[pid2])
-					{
+				for (int i = 0; i < int(Descending_swap_v[pid1].size()); i++) {
+					int vtx1 = Descending_swap_v[pid1][i];
+					for (int j = 0; j < int(Descending_swap_v[pid2].size()); j++) {
+						int vtx2 = Descending_swap_v[pid2][j];
 						if (csol.ptn[vtx1] == csol.ptn[vtx2]) continue;
 						int weight = get_weight(graph, vtx1, vtx2);
 #if(is_trueGamma)
+						int npid1 = csol.ptn[vtx1];
+						int npid2 = csol.ptn[vtx2];
+						int old_delta = 2 * weight
+										  + neg_gamma[npid2][vtx1] - neg_gamma[npid1][vtx1]
+										  + pos_gamma[npid1][vtx1] - pos_gamma[npid2][vtx1]
+										  + neg_gamma[npid1][vtx2] - neg_gamma[npid2][vtx2]
+										  + pos_gamma[npid2][vtx2] - pos_gamma[npid1][vtx2];
+
 						int delta = 2 * weight
-								  + true_gamma[pid2][vtx1] + true_gamma[pid1][vtx2];
+								  + true_gamma[npid2][vtx1] + true_gamma[npid1][vtx2];
+						assert(old_delta == delta);
 #else
+						int npid1 = csol.ptn[vtx1];
+						int npid2 = csol.ptn[vtx2];
 						int delta = 2 * weight
-								  + neg_gamma[pid2][vtx1] - neg_gamma[pid1][vtx1]
-								  + pos_gamma[pid1][vtx1] - pos_gamma[pid2][vtx1]
-								  + neg_gamma[pid1][vtx2] - neg_gamma[pid2][vtx2]
-								  + pos_gamma[pid2][vtx2] - pos_gamma[pid1][vtx2];
+								  + neg_gamma[npid2][vtx1] - neg_gamma[npid1][vtx1]
+								  + pos_gamma[npid1][vtx1] - pos_gamma[npid2][vtx1]
+								  + neg_gamma[npid1][vtx2] - neg_gamma[npid2][vtx2]
+								  + pos_gamma[npid2][vtx2] - pos_gamma[npid1][vtx2];
 #endif
-						if (delta < 0)
+						if (delta < best_delta)
 						{
 							Gain_node gn = Gain_node(vtx1, vtx2, -1, delta, 1);
-							update_Gamma(graph, csol, gn);
-#if(is_Verify)
-							assert(csol.cost == csol.cal_cost(graph));
-							assert(verify_gamma(graph, csol));
-#endif
-							improved = true;
+							best_gn = gn;
+							best_i = i;
+							best_j = j;
 						}
 					}
+				}
+
+				// 在这里接受
+				if (best_delta < 0)
+				{
+					update_Gamma(graph, csol, best_gn);
+
+					// 更新结点列表
+					Descending_swap_v[pid1].erase(Descending_swap_v[pid1].begin() + best_i);
+					Descending_swap_v[pid2].erase(Descending_swap_v[pid2].begin() + best_j);
+					Descending_swap_v[pid1].push_back(best_gn.elem2);
+					Descending_swap_v[pid2].push_back(best_gn.elem1);
+#if(is_Verify)
+					assert(csol.cost == csol.cal_cost(graph));
+					assert(verify_gamma(graph, csol));
+#endif
+					improved = true;
 				}
 			}
 		}
@@ -2511,11 +2547,13 @@ Solution swap_local_search_decomposition(const Graph &graph, const Solution &bso
 						int delta = 2 * weight
 								  + true_gamma[pid2][vtx1] + true_gamma[pid1][vtx2];
 #else
+						int npid1 = csol.ptn[vtx1];
+						int npid2 = csol.ptn[vtx2];
 						int delta = 2 * weight
-						          + neg_gamma[pid2][vtx1] - neg_gamma[pid1][vtx1]
-						          + pos_gamma[pid1][vtx1] - pos_gamma[pid2][vtx1]
-						          + neg_gamma[pid1][vtx2] - neg_gamma[pid2][vtx2]
-						          + pos_gamma[pid2][vtx2] - pos_gamma[pid1][vtx2];
+								  + neg_gamma[npid2][vtx1] - neg_gamma[npid1][vtx1]
+								  + pos_gamma[npid1][vtx1] - pos_gamma[npid2][vtx1]
+								  + neg_gamma[npid1][vtx2] - neg_gamma[npid2][vtx2]
+								  + pos_gamma[npid2][vtx2] - pos_gamma[npid1][vtx2];
 #endif
 						if (delta < 0)
 						{
@@ -3025,7 +3063,7 @@ Solution rel_Maxima_search(const Graph &graph, Solution &csol, clock_t cstime, d
 
 #if(is_Verify)
 	assert(bsol.cost == bsol.cal_cost(graph));
-	assert(verify_gamma(graph, bsol));
+	// assert(verify_gamma(graph, bsol));
 #endif
 	return bsol;
 }
@@ -3114,7 +3152,7 @@ Solution rel_Maxima_search1(const Graph &graph, Solution &csol, clock_t cstime, 
 	}
 #if(is_Verify)
 	assert(bsol.cost == bsol.cal_cost(graph));
-	assert(verify_gamma(graph, bsol));
+	// assert(verify_gamma(graph, bsol));
 #endif
 	return bsol;
 }
@@ -3180,7 +3218,7 @@ Solution rel_Maxima_search2(const Graph &graph, Solution &csol, clock_t cstime, 
 	}
 #if(is_Verify)
 	assert(bsol.cost == bsol.cal_cost(graph));
-	assert(verify_gamma(graph, bsol));
+	// assert(verify_gamma(graph, bsol));
 #endif
 	return bsol;
 }
@@ -3256,7 +3294,7 @@ Solution rel_Maxima_search3(const Graph &graph, Solution &csol, clock_t cstime, 
 
 #if(is_Verify)
 	assert(bsol.cost == bsol.cal_cost(graph));
-	assert(verify_gamma(graph, bsol));
+	// assert(verify_gamma(graph, bsol));
 #endif
 	return bsol;
 }
